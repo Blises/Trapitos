@@ -17,7 +17,13 @@ Mis Trapitos conservará una interfaz de escritorio en **Python y Tkinter** en c
 
 Esta distribución mantiene un inventario común y evita instalar un servidor de base de datos independiente. **No requiere internet para las funciones internas, pero las terminales T02–T07 sí requieren conectividad LAN con T01.** No se abrirá el archivo SQLite desde carpetas compartidas ni se mantendrán siete bases de negocio independientes.
 
-El prototipo actual ejecuta interfaz, reglas y acceso a datos dentro de un solo programa. El servicio LAN, la separación por módulos y los mecanismos de concurrencia descritos como objetivo todavía no existen en el código. Este documento establece el diseño y sus pruebas de aceptación; no certifica que el prototipo ya soporte siete usuarios concurrentes.
+La línea base examinada ejecuta interfaz, reglas y acceso a datos dentro de un solo archivo. El servicio LAN, la separación completa en capas y los mecanismos de concurrencia descritos como objetivo todavía no existen en el código. Este documento establece el diseño y sus pruebas de aceptación; no certifica que el prototipo ya soporte siete usuarios concurrentes.
+
+### Evolución posterior a la línea base: módulo de productos
+
+La interfaz de productos se extrajo a `ui_productos.py`, con la clase `ProductosUI`. El módulo encapsula el formulario, validaciones, variantes por talla/color, imágenes y exportación de inventario. Recibe la instancia existente de `Database`; `App` construye la pestaña y delega su refresco a `actualizar_inventario()` después de ventas, devoluciones y cancelaciones. El stock se actualiza en la tabla y en el formulario del producto seleccionado, conservando las ediciones pendientes de los demás campos.
+
+Esta extracción mantiene el esquema y las transacciones existentes; es un primer paso de modularización, con pruebas de regresión en `tests/test_ui_productos.py`. Las referencias a símbolos y líneas de las secciones siguientes describen el commit de línea base indicado en la portada. La sincronización por LAN y la separación completa entre dominio y persistencia siguen siendo trabajo propuesto.
 
 ## 1. Alcance, requisitos y supuestos
 
