@@ -21,5 +21,6 @@ Las pruebas utilizan widgets Tkinter reales con ventanas ocultas y bases SQLite 
 ## Documentación
 
 - [Documento de Arquitectura de Software (SAD)](docs/SAD.md): decisiones tecnológicas, capas, patrones, distribución propuesta para 7 terminales y operación sin internet mediante una red local.
+- [Documento de Diseño de Software (SDD)](docs/SDD.md): módulos y clases, interfaces Tkinter, modelo relacional y diccionario de datos SQLite, diagramas de secuencia, contratos propuestos para 7 terminales y trazabilidad de requisitos.
 
 El SAD distingue la implementación actual de la arquitectura propuesta. El prototipo todavía no incluye el servicio LAN necesario para compartir de forma controlada una única base de datos entre las siete terminales.
