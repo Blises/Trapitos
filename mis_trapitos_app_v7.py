@@ -18,6 +18,22 @@ DATE_FMT = "%Y-%m-%d"
 DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
 PAYMENT_METHODS = ("Efectivo", "Tarjeta de credito", "Tarjeta de debito", "Transferencia bancaria")
 
+UI_COLORS = {
+    "background": "#F4F7FB",
+    "surface": "#FFFFFF",
+    "surface_alt": "#EEF3F8",
+    "text": "#1F2937",
+    "muted": "#64748B",
+    "border": "#D6DEE8",
+    "primary": "#24456B",
+    "primary_active": "#193653",
+    "accent": "#2A9D8F",
+    "accent_active": "#217D72",
+    "danger": "#B84A55",
+    "danger_active": "#943A44",
+    "selection": "#D9EAF7",
+}
+
 CONFIG_ITEMS = [
     ("CI-01", "Codigo fuente principal"        , "mis_trapitos_app_v7.py", "Controlado"),
     ("CI-02", "Base de datos local"        , "mis_trapitos.db", "Controlado"),
@@ -705,9 +721,11 @@ si JOIN sales s ON s.id=si.sale_id WHERE s.status='ACTIVA' AND date(s.sale_datet
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
+        self._configure_styles()
         self.title(f"{APP_TITLE} v{APP_VERSION}")
-        self.geometry("1280x780")
-        self.minsize(1120, 680)
+        self.geometry("1360x840")
+        self.minsize(1060, 680)
+        self.configure(bg=UI_COLORS["background"])
         self.db = Database(DB_NAME)
         self.user = None
         self.productos_ui = None
@@ -719,6 +737,181 @@ class App(tk.Tk):
         self.protocol("WM_DELETE_WINDOW"          , self.on_close)
         self.show_login()
 
+    def _configure_styles(self):
+        style = ttk.Style(self)
+        if "clam" in style.theme_names():
+            style.theme_use("clam")
+        style.configure(".", font=("Segoe UI", 10), foreground=UI_COLORS["text"])
+        style.configure("TFrame", background=UI_COLORS["background"])
+        style.configure("Surface.TFrame", background=UI_COLORS["surface"])
+        style.configure("Header.TFrame", background=UI_COLORS["primary"])
+        style.configure("Login.TFrame", background=UI_COLORS["background"])
+        style.configure(
+            "TLabel",
+            background=UI_COLORS["background"],
+            foreground=UI_COLORS["text"],
+            padding=(2, 2),
+        )
+        style.configure(
+            "Muted.TLabel",
+            background=UI_COLORS["background"],
+            foreground=UI_COLORS["muted"],
+        )
+        style.configure(
+            "Card.TLabel",
+            background=UI_COLORS["surface"],
+            foreground=UI_COLORS["text"],
+        )
+        style.configure(
+            "Brand.TLabel",
+            background=UI_COLORS["background"],
+            foreground=UI_COLORS["primary"],
+            font=("Segoe UI", 25, "bold"),
+        )
+        style.configure(
+            "Header.TLabel",
+            background=UI_COLORS["primary"],
+            foreground="#FFFFFF",
+            font=("Segoe UI", 11, "bold"),
+            padding=(4, 2),
+        )
+        style.configure(
+            "HeaderMuted.TLabel",
+            background=UI_COLORS["primary"],
+            foreground="#DCE8F5",
+            font=("Segoe UI", 9),
+            padding=(4, 2),
+        )
+        style.configure(
+            "TLabelframe",
+            background=UI_COLORS["surface"],
+            bordercolor=UI_COLORS["border"],
+            relief="solid",
+            borderwidth=1,
+        )
+        style.configure(
+            "TLabelframe.Label",
+            background=UI_COLORS["surface"],
+            foreground=UI_COLORS["primary"],
+            font=("Segoe UI", 10, "bold"),
+        )
+        style.configure(
+            "TButton",
+            background=UI_COLORS["primary"],
+            foreground="#FFFFFF",
+            bordercolor=UI_COLORS["primary"],
+            lightcolor=UI_COLORS["primary"],
+            darkcolor=UI_COLORS["primary"],
+            padding=(12, 7),
+            relief="flat",
+            font=("Segoe UI", 9, "bold"),
+        )
+        style.map(
+            "TButton",
+            background=[("pressed", UI_COLORS["primary_active"]), ("active", UI_COLORS["primary_active"])],
+            foreground=[("disabled", "#AAB5C2"), ("!disabled", "#FFFFFF")],
+        )
+        style.configure(
+            "Accent.TButton",
+            background=UI_COLORS["accent"],
+            bordercolor=UI_COLORS["accent"],
+            lightcolor=UI_COLORS["accent"],
+            darkcolor=UI_COLORS["accent"],
+        )
+        style.map(
+            "Accent.TButton",
+            background=[("pressed", UI_COLORS["accent_active"]), ("active", UI_COLORS["accent_active"])],
+        )
+        style.configure(
+            "Danger.TButton",
+            background=UI_COLORS["danger"],
+            bordercolor=UI_COLORS["danger"],
+            lightcolor=UI_COLORS["danger"],
+            darkcolor=UI_COLORS["danger"],
+        )
+        style.map(
+            "Danger.TButton",
+            background=[("pressed", UI_COLORS["danger_active"]), ("active", UI_COLORS["danger_active"])],
+        )
+        style.configure(
+            "TEntry",
+            fieldbackground=UI_COLORS["surface"],
+            foreground=UI_COLORS["text"],
+            bordercolor=UI_COLORS["border"],
+            lightcolor=UI_COLORS["border"],
+            darkcolor=UI_COLORS["border"],
+            padding=(7, 5),
+        )
+        style.configure(
+            "TCombobox",
+            fieldbackground=UI_COLORS["surface"],
+            foreground=UI_COLORS["text"],
+            bordercolor=UI_COLORS["border"],
+            padding=(6, 5),
+        )
+        style.map(
+            "TCombobox",
+            fieldbackground=[("readonly", UI_COLORS["surface"])],
+            selectbackground=[("readonly", UI_COLORS["selection"])],
+            selectforeground=[("readonly", UI_COLORS["text"])],
+        )
+        style.configure(
+            "TNotebook",
+            background=UI_COLORS["background"],
+            borderwidth=0,
+            tabmargins=(4, 4, 4, 0),
+        )
+        style.configure(
+            "TNotebook.Tab",
+            background=UI_COLORS["surface_alt"],
+            foreground=UI_COLORS["muted"],
+            padding=(14, 9),
+            font=("Segoe UI", 9, "bold"),
+        )
+        style.map(
+            "TNotebook.Tab",
+            background=[("selected", UI_COLORS["surface"]), ("active", UI_COLORS["selection"])],
+            foreground=[("selected", UI_COLORS["primary"]), ("active", UI_COLORS["primary"])],
+        )
+        style.configure(
+            "Treeview",
+            background=UI_COLORS["surface"],
+            fieldbackground=UI_COLORS["surface"],
+            foreground=UI_COLORS["text"],
+            rowheight=29,
+            bordercolor=UI_COLORS["border"],
+            borderwidth=1,
+            relief="solid",
+            font=("Segoe UI", 9),
+        )
+        style.configure(
+            "Treeview.Heading",
+            background=UI_COLORS["primary"],
+            foreground="#FFFFFF",
+            relief="flat",
+            padding=(8, 7),
+            font=("Segoe UI", 9, "bold"),
+        )
+        style.map(
+            "Treeview",
+            background=[("selected", UI_COLORS["selection"])],
+            foreground=[("selected", UI_COLORS["text"])],
+        )
+        style.configure(
+            "Vertical.TScrollbar",
+            background=UI_COLORS["surface_alt"],
+            troughcolor=UI_COLORS["background"],
+            bordercolor=UI_COLORS["background"],
+            arrowcolor=UI_COLORS["primary"],
+        )
+        style.configure(
+            "Horizontal.TScrollbar",
+            background=UI_COLORS["surface_alt"],
+            troughcolor=UI_COLORS["background"],
+            bordercolor=UI_COLORS["background"],
+            arrowcolor=UI_COLORS["primary"],
+        )
+
     def on_close(self):
         try:
             self.db.close()
@@ -727,22 +920,36 @@ class App(tk.Tk):
 
     def show_login(self):
         self.clear_window()
-        frame = ttk.Frame(self, padding=35)
+        frame = ttk.Frame(self, style="Login.TFrame", padding=35)
         frame.pack(expand=True)
-        ttk.Label(frame, text="Mis trapitos", font=("Arial", 24, "bold")).grid(row=0, column=0,
-columnspan=2, pady=10)
-        ttk.Label(frame, text="Usuario inicial: admin / 1234"               ).grid(row=1, column=0, columnspan=2,
-pady=5)
-        ttk.Label(frame, text="Usuario").grid(row=2, column=0, sticky="e", padx=5, pady=5)
-        self.login_user = ttk.Entry(frame, width=30)
-        self.login_user.grid(row=2, column=1, padx=5, pady=5)
-        ttk.Label(frame, text="Contraseña").grid(row=3, column=0, sticky="e", padx=5, pady=5)
-        self.login_password = ttk.Entry(frame, width=30, show="*")
-        self.login_password.grid(row=3, column=1, padx=5, pady=5)
+        frame.columnconfigure(1, weight=1)
+        ttk.Label(frame, text="Mis trapitos", style="Brand.TLabel").grid(
+            row=0, column=0, columnspan=2, pady=(0, 3)
+        )
+        ttk.Label(
+            frame,
+            text="Gestion local de inventario y ventas",
+            style="Muted.TLabel",
+        ).grid(row=1, column=0, columnspan=2, pady=(0, 22))
+        card = ttk.LabelFrame(frame, text="Acceso al sistema", padding=22)
+        card.grid(row=2, column=0, columnspan=2, sticky="ew")
+        card.columnconfigure(1, weight=1)
+        ttk.Label(card, text="Usuario", style="Card.TLabel").grid(row=0, column=0, sticky="e", padx=(0, 10), pady=7)
+        self.login_user = ttk.Entry(card, width=30)
+        self.login_user.grid(row=0, column=1, sticky="ew", padx=(0, 2), pady=7)
+        ttk.Label(card, text="Contraseña", style="Card.TLabel").grid(row=1, column=0, sticky="e", padx=(0, 10), pady=7)
+        self.login_password = ttk.Entry(card, width=30, show="*")
+        self.login_password.grid(row=1, column=1, sticky="ew", padx=(0, 2), pady=7)
         self.login_user.insert(0, "admin")
         self.login_password.insert(0, "1234")
-        ttk.Button(frame, text="Entrar", command=self.login).grid(row=4, column=0, columnspan=2,
-pady=14)
+        ttk.Label(
+            frame,
+            text="Las credenciales se validan en la base local.",
+            style="Muted.TLabel",
+        ).grid(row=3, column=0, columnspan=2, pady=(12, 8))
+        ttk.Button(frame, text="Entrar", style="Accent.TButton", command=self.login).grid(
+            row=4, column=0, columnspan=2, sticky="ew", pady=(2, 0)
+        )
         self.login_password.bind("<Return>", lambda event: self.login())
 
     def login(self):
@@ -756,12 +963,17 @@ self.login_password.get().strip())
 
     def show_main(self):
         self.clear_window()
-        top = ttk.Frame(self, padding=(10, 8))
+        top = ttk.Frame(self, style="Header.TFrame", padding=(18, 12))
         top.pack(fill="x")
-        ttk.Label(top, text=f"Mis trapitos | Usuario: {self.user['name']} | Rol: {self.user['role']}", font=("Arial", 12, "bold")).pack(side="left")
-        ttk.Button(top, text="Salir", command=self.show_login).pack(side="right")
+        ttk.Label(top, text="Mis trapitos", style="Header.TLabel").pack(side="left")
+        ttk.Label(
+            top,
+            text=f"Usuario: {self.user['name']}  •  Rol: {self.user['role']}",
+            style="HeaderMuted.TLabel",
+        ).pack(side="left", padx=(20, 0))
+        ttk.Button(top, text="Cerrar sesion", style="Danger.TButton", command=self.show_login).pack(side="right")
         nb = ttk.Notebook(self)
-        nb.pack(fill="both", expand=True, padx=10, pady=10)
+        nb.pack(fill="both", expand=True, padx=18, pady=(6, 18))
         self.make_products_tab(nb)
         self.make_sales_tab(nb)
         self.make_customers_tab(nb)
@@ -778,9 +990,10 @@ self.login_password.get().strip())
         self.productos_ui = None
 
     def add_labeled_entry(self, parent, text, row, column, width=26, default=""):
-        ttk.Label(parent, text=text).grid(row=row, column=column, sticky="e", padx=4, pady=3)
+        parent.columnconfigure(column + 1, weight=1)
+        ttk.Label(parent, text=text).grid(row=row, column=column, sticky="e", padx=(4, 8), pady=5)
         entry = ttk.Entry(parent, width=width)
-        entry.grid(row=row, column=column + 1, sticky="w", padx=4, pady=3)
+        entry.grid(row=row, column=column + 1, sticky="ew", padx=(0, 10), pady=5)
         if default:
             entry.insert(0, default)
         return entry
@@ -797,9 +1010,24 @@ self.login_password.get().strip())
         xscroll.grid(row=1, column=0, sticky="ew")
         container.rowconfigure(0, weight=1)
         container.columnconfigure(0, weight=1)
+        preferred_widths = {
+            "id": 58, "codigo": 110, "producto": 190, "producto_id": 85,
+            "categoria": 125, "talla": 75, "color": 100, "stock": 75,
+            "precio": 105, "proveedor": 145, "nombre": 175, "telefono": 120,
+            "correo": 190, "region": 135, "preferencias": 180, "direccion": 210,
+            "suministra": 190, "ultimo_pedido": 120, "usuario": 130, "rol": 125,
+            "descuento": 100, "inicio": 105, "fin": 105, "cantidad": 90,
+            "fecha": 145, "motivo": 210, "venta": 75, "metodo": 165,
+            "total": 110, "periodo": 130, "piezas": 90, "ventas": 110,
+            "empleado": 170, "costo": 110, "utilidad": 110, "tipo": 125,
+            "codigo": 120, "requerimiento": 420, "modulo": 170, "prueba": 300,
+            "elemento": 220, "valor": 260, "estado": 125, "resultado": 220,
+            "mensaje": 520,
+        }
         for col in columns:
             tree.heading(col, text=col)
-            tree.column(col, width=130, anchor="w")
+            width = preferred_widths.get(col, 130)
+            tree.column(col, width=width, minwidth=max(55, min(width, 90)), anchor="w", stretch=True)
         return tree
     def tree_clear(self, tree):
         for item in tree.get_children():
@@ -834,11 +1062,11 @@ column=2, columnspan=2, sticky="w")
         self.sale_discount = self.add_labeled_entry(form, "Descuento venta %", 1, 2, default="0")
         self.sale_product_code = self.add_labeled_entry(form, "Codigo producto", 2, 0)
         self.sale_quantity = self.add_labeled_entry(form, "Cantidad", 2, 2, default="1")
-        ttk.Button(form, text="Agregar al carrito"            , command=self.add_cart_item).grid(row=3,
+        ttk.Button(form, text="Agregar al carrito", style="Accent.TButton", command=self.add_cart_item).grid(row=3,
 column=0, pady=8)
-        ttk.Button(form, text="Registrar venta", command=self.register_sale_ui).grid(row=3,
+        ttk.Button(form, text="Registrar venta", style="Accent.TButton", command=self.register_sale_ui).grid(row=3,
 column=1, pady=8)
-        ttk.Button(form, text="Vaciar carrito", command=self.clear_cart).grid(row=3, column=2,
+        ttk.Button(form, text="Vaciar carrito", style="Danger.TButton", command=self.clear_cart).grid(row=3, column=2,
 pady=8)
         body = ttk.Frame(tab)
         body.pack(fill="both", expand=True, pady=8)
@@ -848,7 +1076,22 @@ pady=8)
 "precio", "promo", "subtotal"), height=14)
         ticket_frame = ttk.LabelFrame(body, text="Ticket", padding=5)
         ticket_frame.pack(side="right", fill="both", expand=True, padx=(5, 0))
-        self.ticket_text = tk.Text(ticket_frame, height=16, wrap="word")
+        self.ticket_text = tk.Text(
+            ticket_frame,
+            height=16,
+            wrap="word",
+            bg=UI_COLORS["surface"],
+            fg=UI_COLORS["text"],
+            insertbackground=UI_COLORS["primary"],
+            relief="solid",
+            borderwidth=1,
+            highlightthickness=1,
+            highlightbackground=UI_COLORS["border"],
+            highlightcolor=UI_COLORS["accent"],
+            padx=12,
+            pady=10,
+            font=("Segoe UI", 10),
+        )
         self.ticket_text.pack(fill="both", expand=True)
 
     def add_cart_item(self):
@@ -989,7 +1232,22 @@ self.c_preferences]:
             rows = self.db.customer_history(self.selected_customer_id)
             win = tk.Toplevel(self)
             win.title("Historial de cliente")
-            text = tk.Text(win, width=105, height=28)
+            text = tk.Text(
+                win,
+                width=105,
+                height=28,
+                bg=UI_COLORS["surface"],
+                fg=UI_COLORS["text"],
+                insertbackground=UI_COLORS["primary"],
+                relief="solid",
+                borderwidth=1,
+                highlightthickness=1,
+                highlightbackground=UI_COLORS["border"],
+                highlightcolor=UI_COLORS["accent"],
+                padx=12,
+                pady=10,
+                font=("Segoe UI", 10),
+            )
             text.pack(fill="both", expand=True, padx=10, pady=10)
             if not rows:
                 text.insert(tk.END, "Sin compras registradas.")
@@ -1052,7 +1310,22 @@ font=("Arial", 10, "bold")).pack(anchor="w", pady=(0, 5))
             subject_entry.pack(fill="x", pady=(0, 8))
             subject_entry.insert(0, subject)
             ttk.Label(frame, text="Mensaje").pack(anchor="w")
-            text = tk.Text(frame, height=22, wrap="word")
+            text = tk.Text(
+                frame,
+                height=22,
+                wrap="word",
+                bg=UI_COLORS["surface"],
+                fg=UI_COLORS["text"],
+                insertbackground=UI_COLORS["primary"],
+                relief="solid",
+                borderwidth=1,
+                highlightthickness=1,
+                highlightbackground=UI_COLORS["border"],
+                highlightcolor=UI_COLORS["accent"],
+                padx=12,
+                pady=10,
+                font=("Segoe UI", 10),
+            )
             text.pack(fill="both", expand=True)
             text.insert(tk.END, body)
             buttons = ttk.Frame(frame)
@@ -1275,7 +1548,7 @@ promotions pr JOIN products p ON p.id=pr.product_id ORDER BY pr.id DESC"""      
 column=0, pady=8)
         self.cancel_sale_entry = self.add_labeled_entry(form, "Venta a cancelar"                    , 3, 0)
         self.cancel_reason = self.add_labeled_entry(form, "Motivo cancelacion", 3, 2)
-        ttk.Button(form, text="Cancelar venta", command=self.cancel_sale_ui).grid(row=4, column=0,
+        ttk.Button(form, text="Cancelar venta", style="Danger.TButton", command=self.cancel_sale_ui).grid(row=4, column=0,
 pady=8)
         body = ttk.Frame(tab)
         body.pack(fill="both", expand=True, pady=8)
