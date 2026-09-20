@@ -7,22 +7,24 @@ import urllib.parse
 import webbrowser
 from datetime import date, datetime, timedelta
 from tkinter import filedialog, messagebox, ttk
-from PIL import Image, ImageDraw, ImageTk, ImageOps
+from PIL import Image, ImageDraw
+
+from ui_productos import IMAGE_DIR, ProductosUI
 
 APP_TITLE = "Mis trapitos - Sistema local"
 APP_VERSION = "7.0"
 DB_NAME = "mis_trapitos.db"
-IMAGE_DIR = "mis_trapitos_imagenes"
 DATE_FMT = "%Y-%m-%d"
 DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
 PAYMENT_METHODS = ("Efectivo", "Tarjeta de credito", "Tarjeta de debito", "Transferencia bancaria")
 
 CONFIG_ITEMS = [
-    ("CI-01", "Codigo fuente unico"        , "mis_trapitos_app_v7.py", "Controlado"),
+    ("CI-01", "Codigo fuente principal"        , "mis_trapitos_app_v7.py", "Controlado"),
     ("CI-02", "Base de datos local"        , "mis_trapitos.db", "Controlado"),
     ("CI-03", "Version de aplicacion", APP_VERSION, "Controlado"),
     ("CI-04", "Operacion sin Internet"         , "SQLite local y Tkinter", "Controlado"),
     ("CI-05", "Usuario inicial", "admin / 1234", "Controlado"),
+    ("CI-06", "Modulo de productos", "ui_productos.py", "Controlado"),
 ]
 
 TRACEABILITY = [
@@ -708,13 +710,12 @@ class App(tk.Tk):
         self.minsize(1120, 680)
         self.db = Database(DB_NAME)
         self.user = None
-        self.selected_product_id = None
+        self.productos_ui = None
         self.selected_customer_id = None
         self.selected_supplier_id = None
         self.selected_employee_id = None
         self.selected_promotion_id = None
         self.cart = []
-        self.product_photo_ref        = None
         self.protocol("WM_DELETE_WINDOW"          , self.on_close)
         self.show_login()
 
@@ -774,6 +775,7 @@ self.login_password.get().strip())
     def clear_window(self):
         for child in self.winfo_children():
             child.destroy()
+        self.productos_ui = None
 
     def add_labeled_entry(self, parent, text, row, column, width=26, default=""):
         ttk.Label(parent, text=text).grid(row=row, column=column, sticky="e", padx=4, pady=3)
@@ -809,249 +811,13 @@ self.login_password.get().strip())
             entry.insert(0, "" if value is None else str(value))
 
     def make_products_tab(self, nb):
-        tab = ttk.Frame(nb, padding=10)
-        nb.add(tab, text="Productos")
-        left = ttk.Frame(tab)
-        left.pack(side="left", fill="both", expand=True)
-        right = ttk.LabelFrame(tab, text="Foto del producto", padding=10)
-        right.pack(side="right", fill="y", padx=(10, 0))
-        form = ttk.LabelFrame(left, text="Producto", padding=10)
-        form.pack(fill="x")
-        self.p_code = self.add_labeled_entry(form, "Codigo", 0, 0)
-        self.p_name = self.add_labeled_entry(form, "Nombre", 0, 2)
-        self.p_category = self.add_labeled_entry(form, "Categoria", 1, 0)
-        self.p_size = self.add_labeled_entry(form, "Talla", 1, 2)
-        self.p_color = self.add_labeled_entry(form, "Color", 2, 0)
-        self.p_purchase = self.add_labeled_entry(form, "Precio compra", 2, 2)
-        self.p_sale = self.add_labeled_entry(form, "Precio venta", 3, 0)
-        self.p_stock = self.add_labeled_entry(form, "Stock", 3, 2)
-        self.p_supplier = self.add_labeled_entry(form, "ID proveedor", 4, 0)
-        self.p_entry = self.add_labeled_entry(form, "Fecha ingreso", 4, 2, default=today_text())
-        self.p_brand = self.add_labeled_entry(form, "Marca", 5, 0)
-        self.p_season = self.add_labeled_entry(form, "Temporada", 5, 2)
-        self.p_image = self.add_labeled_entry(form, "Foto", 6, 0, width=58)
-        ttk.Button(form, text="Seleccionar foto", command=self.choose_product_image).grid(row=6,
-column=2, pady=4)
-        ttk.Button(form, text="Agregar producto", command=self.add_product_ui).grid(row=7, column=0,
-pady=8)
-        ttk.Button(form, text="Editar producto", command=self.edit_product_ui).grid(row=7, column=1,
-pady=8)
-        ttk.Button(form, text="Limpiar", command=self.clear_product_form).grid(row=7, column=2,
-pady=8)
-        ttk.Button(form, text="Ver foto", command=self.show_selected_product_image).grid(row=7,
-column=3, pady=8)
-        ttk.Button(form, text="Exportar inventario", command=self.export_inventory_csv).grid(row=8,
-column=0, pady=8)
-        self.product_image_label = tk.Label(right, text="Selecciona un producto", anchor="center",
-width=34, height=16, relief="groove", bg="white")
-        self.product_image_label.pack(padx=10, pady=10)
-        self.product_image_text = ttk.Label(right, text="", wraplength=240, justify="center")
-        self.product_image_text.pack(padx=10, pady=5)
-        table = ttk.LabelFrame(left, text="Inventario", padding=5)
-        table.pack(fill="both", expand=True, pady=8)
-        self.products_tree = self.make_tree(table, ("id", "codigo", "producto", "categoria",
-"talla", "color", "stock", "precio", "proveedor"), height=15)
-        self.products_tree.bind("<<TreeviewSelect>>", self.load_product_selected)
-        self.refresh_products()
-
-    def choose_product_image(self):
-        path = filedialog.askopenfilename(parent=self, title="Seleccionar foto del producto"                       ,
-filetypes=[("Imagenes", ("*.jpg", "*.jpeg", "*.png", "*.gif", "*.ppm", "*.pgm")), ("JPG", ("*.jpg",
-"*.jpeg")), ("PNG", "*.png"), ("Todos", "*.*")])
-        if not path:
-            return
-        try:
-            stored_path = self.store_product_image(path)
-            self.p_image.delete(0, tk.END)
-            self.p_image.insert(0, stored_path)
-            self.display_image(stored_path)
-        except Exception as e:
-            messagebox.showerror("Foto", str(e))
-
-    def resolve_image_path(self, path):
-        if not path:
-            return ""
-        path = path.strip().strip('"')
-        if os.path.exists(path):
-            return path
-        base = os.path.dirname(os.path.abspath(__file__))
-        alternative = os.path.join(base, path)
-        if os.path.exists(alternative):
-            return alternative
-        return ""
-
-    def store_product_image(self, source_path):
-        source_path = self.resolve_image_path(source_path) or source_path
-        if not os.path.exists(source_path):
-            raise ValueError("No se encontro la imagen seleccionada.")
-        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), IMAGE_DIR)
-        os.makedirs(base, exist_ok=True)
-        name, ext = os.path.splitext(os.path.basename(source_path))
-        ext = ext.lower()
-        if ext not in (".jpg", ".jpeg", ".png", ".gif", ".ppm", ".pgm"):
-            ext = ".jpg"
-        safe = "".join(ch for ch in name if ch.isalnum() or ch in ("_", "-")).strip() or "producto"
-        target = os.path.join(base, f"{safe}_{datetime.now().strftime('%Y%m%d%H%M%S')}{ext}")
-        img = ImageOps.exif_transpose(Image.open(source_path))
-        if ext in (".jpg", ".jpeg"):
-            img.convert("RGB").save(target, "JPEG", quality=92)
-        elif ext == ".png":
-            img.save(target, "PNG")
-        else:
-            img.save(target)
-        return target
-
-    def create_photo_image(self, path, size):
-        resolved = self.resolve_image_path(path)
-        if not resolved:
-            raise ValueError("No hay archivo de imagen disponible.")
-        img = ImageOps.exif_transpose(Image.open(resolved))
-        try:
-            resample = Image.Resampling.          LANCZOS
-        except AttributeError:
-            resample = Image.LANCZOS
-        img.thumbnail(size, resample)
-        return ImageTk.PhotoImage(img), resolved
-
-
-    def display_image(self, path):
-        if not path:
-            self.product_photo_ref = None
-            self.product_image_label.configure(image="", text="Sin foto", bg="white")
-            self.product_image_text        .configure(text="No hay archivo de imagen disponible."              )
-            return
-        try:
-            photo, resolved = self.create_photo_image(path, (260, 260))
-            self.product_photo_ref = photo
-            self.product_image_label.configure(image=photo, text="", bg="white")
-            self.product_image_text        .configure(text=os.path.basename(resolved))
-        except Exception as e:
-            self.product_photo_ref = None
-            self.product_image_label.configure(image="", text="No se pudo mostrar la foto",
-bg="white")
-            self.product_image_text.configure(text=str(e))
-
-    def show_selected_product_image(self):
-        path = self.p_image.get().strip()
-        if not path:
-            messagebox.showwarning("Foto", "Primero selecciona una foto o un producto con foto.")
-            return
-        self.display_image(path)
-        try:
-            photo, resolved = self.create_photo_image(path, (620, 620))
-            window = tk.Toplevel(self)
-            window.title(os.path.basename(resolved))
-            window.geometry("700x700")
-            frame = ttk.Frame(window, padding=12)
-            frame.pack(fill="both", expand=True)
-            label = tk.Label(frame, image=photo, bg="white")
-            label.image = photo
-            label.pack(expand=True)
-            ttk.Label(frame, text=resolved, wraplength=650, justify="center").pack(pady=8)
-        except Exception as e:
-            messagebox.showerror("Foto", str(e))
-
-    def collect_product_data(self):
-        data = (
-            self.p_code.get().strip(),
-            self.p_name.get().strip(),
-            self.p_category.get().strip(),
-            self.p_size.get().strip(),
-            self.p_color.get().strip(),
-            float(self.p_purchase.get() or 0),
-            float(self.p_sale.get() or 0),
-            int(self.p_stock.get() or 0),
-            int(self.p_supplier.get()) if self.p_supplier.get().strip() else None,
-            self.p_entry.get().strip() or today_text(),
-            self.p_brand.get().strip(),
-            self.p_season.get().strip(),
-            self.p_image.get().strip(),
-        )
-        if not all(data[:5]):
-            raise ValueError("Codigo, nombre, categoria, talla y color son obligatorios."                      )
-        if data[5] < 0 or data[6] < 0 or data[7] < 0:
-            raise ValueError("Precios y stock no pueden ser negativos."                 )
-        if data[8] is not None and not self.db.one("SELECT id FROM suppliers WHERE id=?"                      ,
-(data[8],)):
-            raise ValueError("El proveedor indicado no existe. Selecciona un ID de proveedor registrado o deja el campo vacio.")
-        return data
-
-    def add_product_ui(self):
-        try:
-            data = self.collect_product_data()
-            self.selected_product_id = self.db.save_product(None, data)
-            self.refresh_products()
-            self.display_image(data[12])
-            messagebox.showinfo("Productos", "Producto agregado.")
-        except Exception as e:
-            messagebox.showerror("Productos", str(e))
-
-    def edit_product_ui(self):
-        try:
-            if not self.selected_product_id:
-                raise ValueError("Selecciona un producto de la tabla antes de editarlo."                      )
-            data = self.collect_product_data()
-            self.db.save_product(self.selected_product_id, data)
-            self.refresh_products()
-            self.display_image(data[12])
-            messagebox.showinfo("Productos", "Producto editado correctamente.")
-        except Exception as e:
-            messagebox.showerror("Productos", str(e))
-
-    def save_product_ui(self):
-        if self.selected_product_id:
-            self.edit_product_ui()
-        else:
-            self.add_product_ui()
+        self.productos_ui = ProductosUI(nb, self.db)
+        nb.add(self.productos_ui, text="Productos")
 
     def refresh_products(self):
-        rows = self.db.query("""SELECT p.id, p.code AS codigo, p.name AS producto, p.category AS
-categoria, p.size AS talla, p.color, p.stock, p.sale_price AS precio, COALESCE(s.name,'') AS
-proveedor FROM products p LEFT JOIN suppliers s ON s.id=p.supplier_id ORDER BY p.id DESC"""                       )
-        self.tree_clear(self.products_tree)
-        for row in rows:
-            self.products_tree.insert("", tk.END, values=[row[key] for key in row.keys()])
-
-    def load_product_selected(self, event=None):
-        sel = self.products_tree.selection()
-        if not sel:
-            return
-        product_id = self.products_tree.item(sel[0], "values")[0]
-        row = self.db.one("SELECT * FROM products WHERE id=?", (product_id,))
-        if not row:
-            return
-        self.selected_product_id = row["id"]
-        entries = [self.p_code, self.p_name, self.p_category, self.p_size, self.p_color,
-self.p_purchase, self.p_sale, self.p_stock, self.p_supplier, self.p_entry, self.p_brand,
-self.p_season, self.p_image]
-        values = [row["code"], row["name"], row["category"], row["size"], row["color"],
-row["purchase_price"], row["sale_price"], row["stock"], row["supplier_id"], row["entry_date"],
-row["brand"], row["season"], row["image_path"]]
-        self.set_entries(entries, values)
-        self.display_image(row["image_path"])
-
-    def clear_product_form(self):
-        self.selected_product_id = None
-        for entry in [self.p_code, self.p_name, self.p_category, self.p_size, self.p_color,
-self.p_purchase, self.p_sale, self.p_stock, self.p_supplier, self.p_entry, self.p_brand,
-self.p_season, self.p_image]:
-            entry.delete(0, tk.END)
-        self.p_supplier.insert(0, "1")
-        self.p_entry.insert(0, today_text())
-        self.display_image("")
-
-    def export_inventory_csv(self):
-        path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV", "*.csv")])
-        if not path:
-            return
-        rows = self.db.report("Inventario general actualizado"               )
-        with open(path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            if rows:
-                writer.writerow(rows[0].keys())
-                for row in rows:
-                    writer.writerow([row[key] for key in row.keys()])
-        messagebox.showinfo("Exportar", f"Inventario exportado en:\n{path}")
+        """Actualiza productos tras una venta, devolucion o cancelacion."""
+        if self.productos_ui is not None:
+            self.productos_ui.actualizar_inventario()
 
     def make_sales_tab(self, nb):
         tab = ttk.Frame(nb, padding=10)
