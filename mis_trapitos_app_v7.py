@@ -3,13 +3,12 @@ import hashlib
 import os
 import sqlite3
 import tkinter as tk
-import urllib.parse
-import webbrowser
 from datetime import date, datetime, timedelta
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageDraw
 
 from ui_productos import IMAGE_DIR, ProductosUI
+from ui_contactos import ContactosUI
 
 APP_TITLE = "Mis trapitos - Sistema local"
 APP_VERSION = "7.0"
@@ -35,47 +34,44 @@ UI_COLORS = {
 }
 
 CONFIG_ITEMS = [
-    ("CI-01", "Codigo fuente principal"        , "mis_trapitos_app_v7.py", "Controlado"),
-    ("CI-02", "Base de datos local"        , "mis_trapitos.db", "Controlado"),
+    ("CI-01", "Codigo fuente principal", "mis_trapitos_app_v7.py", "Controlado"),
+    ("CI-02", "Base de datos local", "mis_trapitos.db", "Controlado"),
     ("CI-03", "Version de aplicacion", APP_VERSION, "Controlado"),
-    ("CI-04", "Operacion sin Internet"         , "SQLite local y Tkinter", "Controlado"),
+    ("CI-04", "Operacion sin Internet", "SQLite local y Tkinter", "Controlado"),
     ("CI-05", "Usuario inicial", "admin / 1234", "Controlado"),
     ("CI-06", "Modulo de productos", "ui_productos.py", "Controlado"),
+    ("CI-07", "Modulo de contactos y usuarios", "ui_contactos.py", "Controlado"),
 ]
 
 TRACEABILITY = [
-    ("RF-01", "Registrar productos con categoria, descripcion, precio, talla y color"                     , "Productos",
-"Guardar producto y verificar en inventario"           ),
-    ("RF-02", "Manejar variaciones de talla y color con existencias"                 , "Productos", "Registrar mismo producto con otra talla o color"),
-    ("RF-03", "Agregar productos y actualizar cantidades de inventario"                  , "Productos", "Modificar stock y revisar movimiento"),
-    ("RF-04", "Actualizar inventario automaticamente al registrar venta"                  , "Ventas", "Vender producto y comprobar disminucion"),
-    ("RF-05", "Registrar movimientos de inventario"             , "Inventario", "Consultar movimientos de entrada, salida, ajuste, devolucion y cancelacion"),
-    ("RF-06", "Registrar ventas con productos, cantidades y metodo de pago"                   , "Ventas", "Registrar venta con carrito"),
-    ("RF-07", "Registrar pagos en efectivo, tarjeta y transferencia"                 , "Ventas", "Seleccionar metodo de pago"),
-    ("RF-08", "Aplicar descuentos a ventas"          , "Ventas", "Capturar descuento general"           ),
-    ("RF-09", "Registrar promociones con porcentaje y duracion"                , "Promociones", "Crear promocion vigente"),
-    ("RF-10", "Aplicar descuentos automaticos segun condiciones"                , "Promociones y Ventas", "Venta aplica promocion vigente"),
-    ("RF-11", "Registrar clientes con nombre, direccion, correo y telefono"                   , "Clientes", "Guardar cliente"),
-    ("RF-12", "Almacenar y consultar historial de compras de cada cliente"                   , "Clientes y Reportes",
-"Consultar historial"),
-    ("RF-13", "Registrar proveedores e informacion de contacto"                , "Proveedores", "Guardar proveedor"),
-    ("RF-14", "Relacionar proveedor con productos que suministra"                , "Productos y Proveedores",
-"Consultar productos por proveedor"),
-    ("RF-15", "Consultar productos disponibles e inventario por categoria"                   , "Reportes", "Reporte por categoria"),
-    ("RF-16", "Consultar productos en oferta y descuentos"               , "Reportes", "Reporte de productos en oferta"),
-    ("RF-17", "Consultar metodos de pago mas utilizados"              , "Reportes", "Reporte de metodos de pago"),
-    ("RF-18", "Consultar productos mas vendidos en el ultimo mes"                , "Reportes", "Reporte mensual"),
-    ("RF-19", "Consultar ventas realizadas en los ultimos tres dias"                 , "Reportes", "Reporte de ultimos tres dias"),
-    ("RF-20", "Consultar productos de un proveedor especifico"                , "Reportes", "Parametro de proveedor"),
-    ("RF-21", "Consultar productos comprados mas de una vez por un cliente"                   , "Reportes", "Parametro de cliente"),
-    ("RF-22", "Consultar productos vendidos por categoria en el ultimo mes"                   , "Reportes", "Parametro de categoria"),
-    ("RF-23", "Consultar productos con precio superior a cierto valor y existencias"                     , "Reportes",
-"Parametro de precio"),
-    ("RF-24", "Consultar producto con mayor descuento vigente"                , "Reportes", "Promociones vigentes"         ),
-    ("RF-25", "Consultar compras por ciudad o region del cliente"                , "Reportes", "Agrupar por region"),
-    ("RF-26", "Consultar productos no vendidos en los ultimos tres meses"                  , "Reportes", "Reporte sin ventas recientes"),
-    ("RNF-01", "Reflejar en tiempo real la disminucion del inventario", "Ventas e Inventario",
-"Validar stock inmediatamente despues de vender"            ),
+    ("RF-01", "Registrar productos con categoria, descripcion, precio, talla y color", "Productos",
+"Guardar producto y verificar en inventario"),
+    ("RF-02", "Manejar variaciones de talla y color con existencias", "Productos", "Registrar mismo producto con otra talla o color"),
+    ("RF-03", "Agregar productos y actualizar cantidades de inventario", "Productos", "Modificar stock y revisar movimiento"),
+    ("RF-04", "Actualizar inventario automaticamente al registrar venta", "Ventas", "Vender producto y comprobar disminucion"),
+    ("RF-05", "Registrar movimientos de inventario", "Inventario", "Consultar movimientos de entrada, salida, ajuste, devolucion y cancelacion"),
+    ("RF-06", "Registrar ventas con productos, cantidades y metodo de pago", "Ventas", "Registrar venta con carrito"),
+    ("RF-07", "Registrar pagos en efectivo, tarjeta y transferencia", "Ventas", "Seleccionar metodo de pago"),
+    ("RF-08", "Aplicar descuentos a ventas", "Ventas", "Capturar descuento general"),
+    ("RF-09", "Registrar promociones con porcentaje y duracion", "Promociones", "Crear promocion vigente"),
+    ("RF-10", "Aplicar descuentos automaticos segun condiciones", "Promociones y Ventas", "Venta aplica promocion vigente"),
+    ("RF-11", "Registrar clientes con nombre, direccion, correo y telefono", "Clientes", "Guardar cliente"),
+    ("RF-12", "Almacenar y consultar historial de compras de cada cliente", "Clientes y Reportes", "Consultar historial"),
+    ("RF-13", "Registrar proveedores e informacion de contacto", "Proveedores", "Guardar proveedor"),
+    ("RF-14", "Relacionar proveedor con productos que suministra", "Productos y Proveedores", "Consultar productos por proveedor"),
+    ("RF-15", "Consultar productos disponibles e inventario por categoria", "Reportes", "Reporte por categoria"),
+    ("RF-16", "Consultar productos en oferta y descuentos", "Reportes", "Reporte de productos en oferta"),
+    ("RF-17", "Consultar metodos de pago mas utilizados", "Reportes", "Reporte de metodos de pago"),
+    ("RF-18", "Consultar productos mas vendidos en el ultimo mes", "Reportes", "Reporte mensual"),
+    ("RF-19", "Consultar ventas realizadas en los ultimos tres dias", "Reportes", "Reporte de ultimos tres dias"),
+    ("RF-20", "Consultar productos de un proveedor especifico", "Reportes", "Parametro de proveedor"),
+    ("RF-21", "Consultar productos comprados mas de una vez por un cliente", "Reportes", "Parametro de cliente"),
+    ("RF-22", "Consultar productos vendidos por categoria en el ultimo mes", "Reportes", "Parametro de categoria"),
+    ("RF-23", "Consultar productos con precio superior a cierto valor y existencias", "Reportes", "Parametro de precio"),
+    ("RF-24", "Consultar producto con mayor descuento vigente", "Reportes", "Promociones vigentes"),
+    ("RF-25", "Consultar compras por ciudad o region del cliente", "Reportes", "Agrupar por region"),
+    ("RF-26", "Consultar productos no vendidos en los ultimos tres meses", "Reportes", "Reporte sin ventas recientes"),
+    ("RNF-01", "Reflejar en tiempo real la disminucion del inventario", "Ventas e Inventario", "Validar stock inmediatamente despues de vender"),
 ]
 
 REPORTS = [
@@ -283,7 +279,7 @@ class Database:
         if "products_supplied" not in columns:
             self.execute("ALTER TABLE suppliers ADD COLUMN products_supplied TEXT")
         if "last_order_date" not in columns:
-            self.execute("ALTER TABLE suppliers ADD COLUMN last_order_date TEXT"                   )
+            self.execute("ALTER TABLE suppliers ADD COLUMN last_order_date TEXT")
         self.conn.commit()
 
     def create_sample_images(self):
@@ -293,7 +289,7 @@ class Database:
             ("camisa_roja.jpg", (210, 70, 70), (245, 210, 210), "Camisa"),
             ("pantalon_azul.jpg", (55, 90, 170), (210, 225, 250), "Pantalon"),
             ("vestido_negro.jpg", (30, 30, 35), (225, 225, 230), "Vestido"),
-            ("falda_verde.jpg"       , (60, 150, 100), (215, 245, 225), "Falda"),
+            ("falda_verde.jpg", (60, 150, 100), (215, 245, 225), "Falda"),
             ("chamarra_cafe.jpg", (130, 85, 55), (245, 225, 205), "Chamarra"),
         ]
         paths = []
@@ -302,8 +298,7 @@ class Database:
             if not os.path.exists(path):
                 img = Image.new("RGB", (260, 260), (248, 248, 248))
                 draw = ImageDraw.Draw(img)
-                draw.rounded_rectangle((35, 35, 225, 225), radius=18, fill=back, outline=(180, 180,
-180), width=2)
+                draw.rounded_rectangle((35, 35, 225, 225), radius=18, fill=back, outline=(180, 180, 180), width=2)
                 if label == "Camisa":
                     draw.polygon([(75, 70), (110, 55), (130, 75), (150, 55), (185, 70), (168, 115),
 (160, 205), (100, 205), (92, 115)], fill=main)
@@ -313,8 +308,7 @@ class Database:
                     draw.polygon([(95, 115), (128, 115), (118, 215), (82, 215)], fill=main)
                     draw.polygon([(132, 115), (165, 115), (178, 215), (142, 215)], fill=main)
                 elif label == "Vestido":
-                    draw.polygon([(115, 55), (145, 55), (165, 125), (205, 215), (55, 215), (95,
-125)], fill=main)
+                    draw.polygon([(115, 55), (145, 55), (165, 125), (205, 215), (55, 215), (95, 125)], fill=main)
                     draw.ellipse((118, 58, 142, 82), fill=back)
                 elif label == "Falda":
                     draw.rectangle((90, 70, 170, 95), fill=main)
@@ -332,16 +326,11 @@ class Database:
 
     def seed_examples(self):
         suppliers = [
-            ("Moda Centro", "3331001001", "Av. Juarez 120, Guadalajara", "Camisas y blusas",
-date_offset(-18)),
-            ("Textiles Luna", "3331001002", "Calle Industria 45, Zapopan"                  , "Pantalones y mezclilla",
-date_offset(-15)),
-            ("Distribuidora Sol", "3331001003", "Av. Mexico 880, Guadalajara", "Vestidos y faldas",
-date_offset(-10)),
-            ("Ropa Norte", "3331001004", "Calle Hidalgo 210, Tlaquepaque"                  , "Chamarras y sudaderas",
-date_offset(-8)),
-            ("Accesorios Viva"       , "3331001005", "Mercado Libertad Local 54"           , "Accesorios y temporada",
-date_offset(-3)),
+            ("Moda Centro", "3331001001", "Av. Juarez 120, Guadalajara", "Camisas y blusas", date_offset(-18)),
+            ("Textiles Luna", "3331001002", "Calle Industria 45, Zapopan", "Pantalones y mezclilla", date_offset(-15)),
+            ("Distribuidora Sol", "3331001003", "Av. Mexico 880, Guadalajara", "Vestidos y faldas", date_offset(-10)),
+            ("Ropa Norte", "3331001004", "Calle Hidalgo 210, Tlaquepaque", "Chamarras y sudaderas", date_offset(-8)),
+            ("Accesorios Viva", "3331001005", "Mercado Libertad Local 54", "Accesorios y temporada", date_offset(-3)),
         ]
         for row in suppliers:
             if not self.one("SELECT id FROM suppliers WHERE name=?", (row[0],)):
@@ -358,44 +347,32 @@ date_offset(-3)),
             if not row:
                 self.execute("INSERT INTO employees(name, username, password_hash, role, created_at) VALUES(?,?,?,?,?)", (name, username, hash_password(password), role, now_text()))
         customers = [
-            ("Sofia Martinez", "3311110001", "sofia@gmail.com", "Calle Roble 10", "Guadalajara",
-"Camisas casuales"),
-            ("Diego Hernandez", "3311110002", "diego@gmail.com", "Av. Patria 200", "Zapopan",
-"Pantalones de mezclilla"),
-            ("Valeria Torres", "3311110003", "valeria@hotmail.com", "Calle Naranjo 33",
-"Tlaquepaque", "Vestidos negros"),
-            ("Miguel Chavez", "3311110004", "miguel@outlook.com", "Av. Central 77", "Tonalá",
-"Chamarras"),
-            ("Lucia Ramirez", "3311110005", "lucia@gmail.com", "Calle Reforma 91", "Guadalajara",
-"Faldas y ofertas"),
+            ("Sofia Martinez", "3311110001", "sofia@gmail.com", "Calle Roble 10", "Guadalajara", "Camisas casuales"),
+            ("Diego Hernandez", "3311110002", "diego@gmail.com", "Av. Patria 200", "Zapopan", "Pantalones de mezclilla"),
+            ("Valeria Torres", "3311110003", "valeria@hotmail.com", "Calle Naranjo 33", "Tlaquepaque", "Vestidos negros"),
+            ("Miguel Chavez", "3311110004", "miguel@outlook.com", "Av. Central 77", "Tonalá", "Chamarras"),
+            ("Lucia Ramirez", "3311110005", "lucia@gmail.com", "Calle Reforma 91", "Guadalajara", "Faldas y ofertas"),
         ]
         for row in customers:
             if not self.one("SELECT id FROM customers WHERE email=?", (row[2],)):
                 self.execute("INSERT INTO customers(name, phone, email, address, city_region, preferences, created_at) VALUES(?,?,?,?,?,?,?)", (*row, now_text()))
         supplier_ids = {row["name"]: row["id"] for row in self.query("SELECT id, name FROM suppliers")}
         products = [
-            ("MT001", "Camisa casual roja", "Camisa", "M", "Rojo", 120, 249, 35,
-supplier_ids.get("Moda Centro"), date_offset(-20), "Urbana", "Primavera", ""),
-            ("MT002", "Pantalon mezclilla azul", "Pantalon", "32", "Azul", 210, 449, 28,
-supplier_ids.get("Textiles Luna"), date_offset(-18), "Denim Pro", "Todo el año", ""),
-            ("MT003", "Vestido negro corto"          , "Vestido", "S", "Negro", 250, 599, 22,
-supplier_ids.get("Distribuidora Sol"), date_offset(-14), "Noche", "Verano", ""),
-            ("MT004", "Falda verde plisada"          , "Falda", "M", "Verde", 140, 329, 30,
-supplier_ids.get("Distribuidora Sol"), date_offset(-9), "Fresh", "Primavera", ""),
-            ("MT005", "Chamarra cafe ligera", "Chamarra", "L", "Cafe", 310, 699, 18,
-supplier_ids.get("Ropa Norte"), date_offset(-7), "Abrigo MX", "Invierno", ""),
+            ("MT001", "Camisa casual roja", "Camisa", "M", "Rojo", 120, 249, 35, supplier_ids.get("Moda Centro"), date_offset(-20), "Urbana", "Primavera", ""),
+            ("MT002", "Pantalon mezclilla azul", "Pantalon", "32", "Azul", 210, 449, 28, supplier_ids.get("Textiles Luna"), date_offset(-18), "Denim Pro", "Todo el año", ""),
+            ("MT003", "Vestido negro corto", "Vestido", "S", "Negro", 250, 599, 22, supplier_ids.get("Distribuidora Sol"), date_offset(-14), "Noche", "Verano", ""),
+            ("MT004", "Falda verde plisada", "Falda", "M", "Verde", 140, 329, 30, supplier_ids.get("Distribuidora Sol"), date_offset(-9), "Fresh", "Primavera", ""),
+            ("MT005", "Chamarra cafe ligera", "Chamarra", "L", "Cafe", 310, 699, 18, supplier_ids.get("Ropa Norte"), date_offset(-7), "Abrigo MX", "Invierno", ""),
         ]
         for row in products:
             existing = self.one("SELECT id FROM products WHERE code=?", (row[0],))
             if not existing:
                 cur = self.execute("""INSERT INTO products(code, name, category, size, color,
 purchase_price, sale_price, stock, supplier_id, entry_date, brand, season, image_path, created_at)
-VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""         , (*row, now_text()))
-                self.register_movement(cur.lastrowid, "ENTRADA", row[7], "Alta inicial de ejemplo"                        ,
-None)
+VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (*row, now_text()))
+                self.register_movement(cur.lastrowid, "ENTRADA", row[7], "Alta inicial de ejemplo", None)
             else:
-                default_image_names = ("camisa_roja.jpg", "pantalon_azul.jpg", "vestido_negro.jpg",
-"falda_verde.jpg", "chamarra_cafe.jpg"         )
+                default_image_names = ("camisa_roja.jpg", "pantalon_azul.jpg", "vestido_negro.jpg", "falda_verde.jpg", "chamarra_cafe.jpg")
                 current = self.one("SELECT image_path FROM products WHERE code=?", (row[0],))
                 current_path = current["image_path"] if current else ""
                 if current_path and os.path.basename(current_path) in default_image_names:
@@ -405,8 +382,7 @@ None)
         for code, discount in promo_defs:
             pid = product_ids.get(code)
             if pid and not self.one("SELECT id FROM promotions WHERE product_id=? AND discount_percent=?", (pid, discount)):
-                self.execute("INSERT INTO promotions(product_id, discount_percent, start_date, end_date, created_at) VALUES(?,?,?,?,?)", (pid, discount, date_offset(-5), date_offset(30),
-now_text()))
+                self.execute("INSERT INTO promotions(product_id, discount_percent, start_date, end_date, created_at) VALUES(?,?,?,?,?)", (pid, discount, date_offset(-5), date_offset(30), now_text()))
         if self.scalar("SELECT COUNT(*) FROM sales WHERE sale_datetime LIKE '2026-05-22 %' OR sale_datetime IS NOT NULL") < 5:
             self.seed_sales(product_ids, cancelled=False, count=5)
         if self.scalar("SELECT COUNT(*) FROM returns") < 5:
@@ -427,8 +403,7 @@ now_text()))
             ]
             customer_id = customers[i % len(customers)] if customers else None
             employee_id = employees[i % len(employees)] if employees else 1
-            sale_id, subtotal, discount_amount, total = self.register_sale(customer_id, employee_id,
-PAYMENT_METHODS[i % len(PAYMENT_METHODS)], i * 2, cart)
+            sale_id, subtotal, discount_amount, total = self.register_sale(customer_id, employee_id, PAYMENT_METHODS[i % len(PAYMENT_METHODS)], i * 2, cart)
             self.execute("UPDATE sales SET sale_datetime=? WHERE id=?", ((datetime.now() - timedelta(days=i)).strftime(DATETIME_FMT), sale_id))
             if cancelled:
                 self.cancel_sale(sale_id, "Producto en buenas condiciones")
@@ -453,18 +428,16 @@ PAYMENT_METHODS[i % len(PAYMENT_METHODS)], i * 2, cart)
                 used += 1
 
     def authenticate(self, username, password):
-        return self.one("SELECT * FROM employees WHERE username=? AND password_hash=?", (username,
-hash_password(password)))
+        return self.one("SELECT * FROM employees WHERE username=? AND password_hash=?", (username, hash_password(password)))
 
     def register_movement(self, product_id, movement_type, quantity, reason, sale_id=None):
-        self.execute("INSERT INTO inventory_movements(product_id, movement_type, quantity, movement_datetime, reason, related_sale_id) VALUES(?,?,?,?,?,?)", (product_id, movement_type,
-quantity, now_text(), reason, sale_id))
+        self.execute("INSERT INTO inventory_movements(product_id, movement_type, quantity, movement_datetime, reason, related_sale_id) VALUES(?,?,?,?,?,?)", (product_id, movement_type, quantity, now_text(), reason, sale_id))
 
     def save_supplier(self, supplier_id, data):
         if supplier_id:
             self.execute("UPDATE suppliers SET name=?, phone=?, address=?, products_supplied=?, last_order_date=? WHERE id=?", (*data, supplier_id))
             return supplier_id
-        cur = self.execute("INSERT INTO suppliers(name, phone, address, products_supplied, last_order_date, created_at) VALUES(?,?,?,?,?,?)"            , (*data, now_text()))
+        cur = self.execute("INSERT INTO suppliers(name, phone, address, products_supplied, last_order_date, created_at) VALUES(?,?,?,?,?,?)", (*data, now_text()))
         return cur.lastrowid
 
     def save_employee(self, employee_id, name, username, password, role):
@@ -472,8 +445,7 @@ quantity, now_text(), reason, sale_id))
             if password:
                 self.execute("UPDATE employees SET name=?, username=?, password_hash=?, role=? WHERE id=?", (name, username, hash_password(password), role, employee_id))
             else:
-                self.execute("UPDATE employees SET name=?, username=?, role=? WHERE id=?"                      , (name,
-username, role, employee_id))
+                self.execute("UPDATE employees SET name=?, username=?, role=? WHERE id=?", (name, username, role, employee_id))
             return employee_id
         cur = self.execute("INSERT INTO employees(name, username, password_hash, role, created_at) VALUES(?,?,?,?,?)", (name, username, hash_password(password or "1234"), role, now_text()))
         return cur.lastrowid
@@ -492,22 +464,19 @@ username, role, employee_id))
 purchase_price=?, sale_price=?, stock=?, supplier_id=?, entry_date=?, brand=?, season=?,
 image_path=? WHERE id=?""", (*data, product_id))
             if old and int(old["stock"]) != int(data[7]):
-                self.register_movement(product_id, "AJUSTE", int(data[7]) - int(old["stock"]),
-"Actualizacion manual de inventario", None)
+                self.register_movement(product_id, "AJUSTE", int(data[7]) - int(old["stock"]), "Actualizacion manual de inventario", None)
             return product_id
         cur = self.execute("""INSERT INTO products(code, name, category, size, color,
 purchase_price, sale_price, stock, supplier_id, entry_date, brand, season, image_path, created_at)
-VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""         , (*data, now_text()))
-        self.register_movement(cur.lastrowid, "ENTRADA", int(data[7]), "Alta inicial de producto",
-None)
+VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (*data, now_text()))
+        self.register_movement(cur.lastrowid, "ENTRADA", int(data[7]), "Alta inicial de producto", None)
         return cur.lastrowid
 
     def save_promotion(self, promotion_id, product_id, discount_percent, start_date, end_date):
         if promotion_id:
             self.execute("UPDATE promotions SET product_id=?, discount_percent=?, start_date=?, end_date=? WHERE id=?", (product_id, discount_percent, start_date, end_date, promotion_id))
             return promotion_id
-        cur = self.execute("INSERT INTO promotions(product_id, discount_percent, start_date, end_date, created_at) VALUES(?,?,?,?,?)", (product_id, discount_percent, start_date, end_date,
-now_text()))
+        cur = self.execute("INSERT INTO promotions(product_id, discount_percent, start_date, end_date, created_at) VALUES(?,?,?,?,?)", (product_id, discount_percent, start_date, end_date, now_text()))
         return cur.lastrowid
 
     def active_promotion_percent(self, product_id):
@@ -521,7 +490,7 @@ now_text()))
         if sale_discount_percent < 0 or sale_discount_percent > 100:
             raise ValueError("El descuento debe estar entre 0 y 100.")
         if payment_method not in PAYMENT_METHODS:
-            raise ValueError("Metodo de pago no valido."              )
+            raise ValueError("Metodo de pago no valido.")
         with self.conn:
             subtotal = 0.0
             prepared = []
@@ -532,10 +501,10 @@ now_text()))
                 if not product:
                     raise ValueError("Producto no encontrado.")
                 if qty <= 0:
-                    raise ValueError("La cantidad debe ser mayor a cero."                  )
+                    raise ValueError("La cantidad debe ser mayor a cero.")
                 if int(product["stock"]) < qty:
                     raise ValueError(f"Stock insuficiente para {product['code']} - {product['name']}.")
-                promo = self.active_promotion_percent             (product_id)
+                promo = self.active_promotion_percent(product_id)
                 unit_price = float(product["sale_price"])
                 line_total = unit_price * qty * (1 - promo / 100)
                 subtotal += line_total
@@ -544,23 +513,20 @@ now_text()))
             total = subtotal - discount_amount
             cur = self.conn.execute("""INSERT INTO sales(sale_datetime, customer_id, employee_id,
 payment_method, subtotal, sale_discount_percent, discount_amount, total, status)
-VALUES(?,?,?,?,?,?,?,?,?)""", (now_text(), customer_id or None, employee_id, payment_method,
-subtotal, sale_discount_percent, discount_amount, total, "ACTIVA"))
+VALUES(?,?,?,?,?,?,?,?,?)""", (now_text(), customer_id or None, employee_id, payment_method, subtotal, sale_discount_percent, discount_amount, total, "ACTIVA"))
             sale_id = cur.lastrowid
             for product_id, qty, unit_price, promo, line_total in prepared:
-                self.conn.execute("INSERT INTO sale_items(sale_id, product_id, quantity, unit_price, promo_discount_percent, line_total) VALUES(?,?,?,?,?,?)"              , (sale_id, product_id, qty, unit_price,
-promo, line_total))
-                self.conn.execute("UPDATE products SET stock = stock                  - ? WHERE id=?", (qty,
-product_id))
-                self.conn.execute("INSERT INTO inventory_movements(product_id, movement_type, quantity, movement_datetime, reason, related_sale_id) VALUES(?,?,?,?,?,?)", (product_id, "SALIDA", - qty, now_text(), "Venta registrada"        , sale_id))
+                self.conn.execute("INSERT INTO sale_items(sale_id, product_id, quantity, unit_price, promo_discount_percent, line_total) VALUES(?,?,?,?,?,?)", (sale_id, product_id, qty, unit_price, promo, line_total))
+                self.conn.execute("UPDATE products SET stock = stock - ? WHERE id=?", (qty, product_id))
+                self.conn.execute("INSERT INTO inventory_movements(product_id, movement_type, quantity, movement_datetime, reason, related_sale_id) VALUES(?,?,?,?,?,?)", (product_id, "SALIDA", -qty, now_text(), "Venta registrada", sale_id))
             return sale_id, subtotal, discount_amount, total
 
     def return_item(self, sale_id, product_id, quantity, reason):
-        sale = self.one("SELECT * FROM sales WHERE id=?"              , (sale_id,))
+        sale = self.one("SELECT * FROM sales WHERE id=?", (sale_id,))
         if not sale:
             raise ValueError("Venta no encontrada.")
         if sale["status"] == "CANCELADA":
-            raise ValueError("No se puede devolver sobre una venta cancelada."                   )
+            raise ValueError("No se puede devolver sobre una venta cancelada.")
         sold_qty = self.scalar("SELECT COALESCE(SUM(quantity),0) FROM sale_items WHERE sale_id=? AND product_id=?", (sale_id, product_id)) or 0
         returned_qty = self.scalar("SELECT COALESCE(SUM(quantity),0) FROM returns WHERE sale_id=? AND product_id=?", (sale_id, product_id)) or 0
         quantity = int(quantity)
@@ -568,27 +534,23 @@ product_id))
             raise ValueError("Cantidad de devolucion no valida.")
         with self.conn:
             self.conn.execute("INSERT INTO returns(sale_id, product_id, quantity, return_datetime, reason) VALUES(?,?,?,?,?)", (sale_id, product_id, quantity, now_text(), reason))
-            self.conn.execute("UPDATE products SET stock = stock + ? WHERE id=?", (quantity,
-product_id))
-            self.conn.execute("INSERT INTO inventory_movements(product_id, movement_type, quantity, movement_datetime, reason, related_sale_id) VALUES(?,?,?,?,?,?)", (product_id, "DEVOLUCION",
-quantity, now_text(), reason or "Devolucion", sale_id))
+            self.conn.execute("UPDATE products SET stock = stock + ? WHERE id=?", (quantity, product_id))
+            self.conn.execute("INSERT INTO inventory_movements(product_id, movement_type, quantity, movement_datetime, reason, related_sale_id) VALUES(?,?,?,?,?,?)", (product_id, "DEVOLUCION", quantity, now_text(), reason or "Devolucion", sale_id))
 
     def cancel_sale(self, sale_id, reason):
         sale = self.one("SELECT * FROM sales WHERE id=?", (sale_id,))
         if not sale:
             raise ValueError("Venta no encontrada.")
         if sale["status"] == "CANCELADA":
-            raise ValueError("La venta ya esta cancelada."              )
-        items = self.query("SELECT * FROM sale_items WHERE sale_id=?"                 , (sale_id,))
+            raise ValueError("La venta ya esta cancelada.")
+        items = self.query("SELECT * FROM sale_items WHERE sale_id=?", (sale_id,))
         with self.conn:
             for item in items:
                 returned_qty = self.scalar("SELECT COALESCE(SUM(quantity),0) FROM returns WHERE sale_id=? AND product_id=?", (sale_id, item["product_id"])) or 0
                 restore_qty = max(0, int(item["quantity"]) - int(returned_qty))
                 if restore_qty > 0:
-                    self.conn.execute("UPDATE products SET stock = stock + ? WHERE id=?",
-(restore_qty, item["product_id"]))
-                    self.conn.execute("INSERT INTO inventory_movements(product_id, movement_type, quantity, movement_datetime, reason, related_sale_id) VALUES(?,?,?,?,?,?)", (item["product_id"],
-"CANCELACION", restore_qty, now_text(), reason or "Cancelacion", sale_id))
+                    self.conn.execute("UPDATE products SET stock = stock + ? WHERE id=?", (restore_qty, item["product_id"]))
+                    self.conn.execute("INSERT INTO inventory_movements(product_id, movement_type, quantity, movement_datetime, reason, related_sale_id) VALUES(?,?,?,?,?,?)", (item["product_id"], "CANCELACION", restore_qty, now_text(), reason or "Cancelacion", sale_id))
             self.conn.execute("UPDATE sales SET status='CANCELADA' WHERE id=?", (sale_id,))
             self.conn.execute("INSERT INTO cancellations(sale_id, cancel_datetime, reason) VALUES(?,?,?)", (sale_id, now_text(), reason or "Cancelacion"))
 
@@ -596,18 +558,17 @@ quantity, now_text(), reason or "Devolucion", sale_id))
         return self.query("""SELECT s.id AS venta, s.sale_datetime AS fecha, p.code AS codigo,
 p.name AS producto, si.quantity AS cantidad, si.line_total AS total_linea, s.total AS total_venta,
 s.status AS estado FROM sales s JOIN sale_items si ON si.sale_id=s.id JOIN products p ON
-p.id=si.product_id WHERE s.customer_id=? ORDER BY s.sale_datetime DESC"""                  , (customer_id,))
+p.id=si.product_id WHERE s.customer_id=? ORDER BY s.sale_datetime DESC""", (customer_id,))
 
     def report(self, name, param=""):
         param = (param or "").strip()
         if name == "Inventario general actualizado":
             return self.query("""SELECT p.id, p.code AS codigo, p.name AS producto, p.category AS
 categoria, p.size AS talla, p.color, p.stock, p.sale_price AS precio, COALESCE(s.name,'') AS
-proveedor FROM products p LEFT JOIN suppliers s ON s.id=p.supplier_id ORDER BY p.category,
-p.name""")
+proveedor FROM products p LEFT JOIN suppliers s ON s.id=p.supplier_id ORDER BY p.category, p.name""")
         if name == "Productos con stock bajo":
             limit = int(param or 5)
-            return self.query("SELECT code AS codigo, name AS producto, category AS categoria, size AS talla, color, stock FROM products WHERE stock <= ? ORDER BY stock ASC"                  , (limit,))
+            return self.query("SELECT code AS codigo, name AS producto, category AS categoria, size AS talla, color, stock FROM products WHERE stock <= ? ORDER BY stock ASC", (limit,))
         if name == "Ventas diarias, semanales y mensuales":
             return self.query("""SELECT 'Dia actual' AS periodo, COALESCE(SUM(total),0) AS total
 FROM sales WHERE status='ACTIVA' AND date(sale_datetime)=date('now') UNION ALL SELECT 'Ultimos 7 dias', COALESCE(SUM(total),0) FROM sales WHERE status='ACTIVA' AND
@@ -630,8 +591,7 @@ WHERE s.status='ACTIVA' GROUP BY p.id ORDER BY piezas DESC LIMIT 20""")
         if name == "Productos menos vendidos":
             return self.query("""SELECT p.code AS codigo, p.name AS producto, COALESCE(SUM(CASE WHEN
 s.status='ACTIVA' THEN si.quantity ELSE 0 END),0) AS piezas FROM products p LEFT JOIN sale_items si
-ON si.product_id=p.id LEFT JOIN sales s ON s.id=si.sale_id GROUP BY p.id ORDER BY piezas ASC LIMIT
-20""")
+ON si.product_id=p.id LEFT JOIN sales s ON s.id=si.sale_id GROUP BY p.id ORDER BY piezas ASC LIMIT 20""")
         if name == "Entradas de mercancia":
             return self.query("""SELECT im.movement_datetime AS fecha, p.code AS codigo, p.name AS
 producto, im.quantity AS cantidad, im.reason AS motivo FROM inventory_movements im JOIN products p
@@ -675,7 +635,7 @@ LEFT JOIN customers c ON c.id=s.customer_id JOIN employees e ON e.id=s.employee_
 date(s.sale_datetime)>=date('now','-3 day') ORDER BY s.sale_datetime DESC""")
         if name == "Productos de proveedor especifico":
             if not param:
-                raise ValueError("Escribe ID o nombre del proveedor."                 )
+                raise ValueError("Escribe ID o nombre del proveedor.")
             if param.isdigit():
                 return self.query("""SELECT p.code AS codigo, p.name AS producto, p.category AS
 categoria, p.size AS talla, p.color, p.stock, s.name AS proveedor FROM products p JOIN suppliers s
@@ -696,7 +656,7 @@ COUNT(DISTINCT s.id)>1 OR SUM(si.quantity)>1 ORDER BY piezas DESC""", (int(param
             return self.query("""SELECT p.category AS categoria, p.code AS codigo, p.name AS
 producto, SUM(si.quantity) AS piezas, SUM(si.line_total) AS total FROM sale_items si JOIN products p
 ON p.id=si.product_id JOIN sales s ON s.id=si.sale_id WHERE s.status='ACTIVA' AND
-date(s.sale_datetime)>=date('now','        -1 month') AND p.category LIKE ? GROUP BY p.id ORDER BY piezas
+date(s.sale_datetime)>=date('now','-1 month') AND p.category LIKE ? GROUP BY p.id ORDER BY piezas
 DESC""", (f"%{param}%",))
         if name == "Productos con precio superior y existencias":
             value = float(param or 0)
@@ -729,12 +689,13 @@ class App(tk.Tk):
         self.db = Database(DB_NAME)
         self.user = None
         self.productos_ui = None
-        self.selected_customer_id = None
-        self.selected_supplier_id = None
-        self.selected_employee_id = None
+        self.contactos_ui = None
+        self.main_notebook = None
+        self.navigation_buttons = []
+        self.module_title = tk.StringVar(value="Productos")
         self.selected_promotion_id = None
         self.cart = []
-        self.protocol("WM_DELETE_WINDOW"          , self.on_close)
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.show_login()
 
     def _configure_styles(self):
@@ -782,16 +743,103 @@ class App(tk.Tk):
             font=("Segoe UI", 9),
             padding=(4, 2),
         )
+        style.configure("Sidebar.TFrame", background=UI_COLORS["primary"])
+        style.configure("Workspace.TFrame", background=UI_COLORS["background"])
+        style.configure("WorkspaceHeader.TFrame", background=UI_COLORS["surface"])
+        style.configure(
+            "SidebarBrand.TLabel",
+            background=UI_COLORS["primary"],
+            foreground="#FFFFFF",
+            font=("Segoe UI", 15, "bold"),
+        )
+        style.configure(
+            "SidebarMuted.TLabel",
+            background=UI_COLORS["primary"],
+            foreground="#AFC5D9",
+            font=("Segoe UI", 9),
+        )
+        style.configure(
+            "SidebarSection.TLabel",
+            background=UI_COLORS["primary"],
+            foreground="#AFC5D9",
+            font=("Segoe UI", 8, "bold"),
+        )
+        style.configure(
+            "Sidebar.TButton",
+            background=UI_COLORS["primary"],
+            foreground="#D8E6F2",
+            bordercolor=UI_COLORS["primary"],
+            lightcolor=UI_COLORS["primary"],
+            darkcolor=UI_COLORS["primary"],
+            relief="flat",
+            anchor="w",
+            padding=(14, 10),
+            font=("Segoe UI", 10),
+        )
+        style.map(
+            "Sidebar.TButton",
+            background=[("active", "#315574"), ("pressed", "#315574")],
+            foreground=[("active", "#FFFFFF"), ("pressed", "#FFFFFF")],
+        )
+        style.configure(
+            "SidebarActive.TButton",
+            background=UI_COLORS["accent"],
+            foreground="#FFFFFF",
+            bordercolor=UI_COLORS["accent"],
+            lightcolor=UI_COLORS["accent"],
+            darkcolor=UI_COLORS["accent"],
+            relief="flat",
+            anchor="w",
+            padding=(14, 10),
+            font=("Segoe UI", 10, "bold"),
+        )
+        style.map(
+            "SidebarActive.TButton",
+            background=[("active", UI_COLORS["accent_active"]), ("pressed", UI_COLORS["accent_active"])],
+        )
+        style.configure(
+            "SidebarLogout.TButton",
+            background=UI_COLORS["primary"],
+            foreground="#D8E6F2",
+            bordercolor="#315574",
+            lightcolor=UI_COLORS["primary"],
+            darkcolor=UI_COLORS["primary"],
+            relief="flat",
+            anchor="w",
+            padding=(0, 8),
+            font=("Segoe UI", 9),
+        )
+        style.configure(
+            "WorkspaceTitle.TLabel",
+            background=UI_COLORS["surface"],
+            foreground=UI_COLORS["text"],
+            font=("Segoe UI", 15, "bold"),
+        )
+        style.configure(
+            "WorkspaceMuted.TLabel",
+            background=UI_COLORS["surface"],
+            foreground=UI_COLORS["muted"],
+            font=("Segoe UI", 9),
+        )
+        style.configure("Content.TFrame", background=UI_COLORS["background"])
+        style.configure(
+            "Hidden.TNotebook",
+            background=UI_COLORS["background"],
+            borderwidth=0,
+            padding=0,
+        )
+        style.layout("Hidden.TNotebook", [("Notebook.client", {"sticky": "nswe"})])
+        style.layout("Hidden.TNotebook.Tab", [])
         style.configure(
             "TLabelframe",
-            background=UI_COLORS["surface"],
-            bordercolor=UI_COLORS["border"],
-            relief="solid",
-            borderwidth=1,
+            background=UI_COLORS["background"],
+            bordercolor=UI_COLORS["background"],
+            relief="flat",
+            borderwidth=0,
         )
         style.configure(
             "TLabelframe.Label",
-            background=UI_COLORS["surface"],
+            background=UI_COLORS["background"],
             foreground=UI_COLORS["primary"],
             font=("Segoe UI", 10, "bold"),
         )
@@ -953,8 +1001,7 @@ class App(tk.Tk):
         self.login_password.bind("<Return>", lambda event: self.login())
 
     def login(self):
-        user = self.db.authenticate(self.login_user.get().strip(),
-self.login_password.get().strip())
+        user = self.db.authenticate(self.login_user.get().strip(), self.login_password.get().strip())
         if not user:
             messagebox.showerror("Acceso", "Usuario o contraseña incorrectos.")
             return
@@ -963,31 +1010,105 @@ self.login_password.get().strip())
 
     def show_main(self):
         self.clear_window()
-        top = ttk.Frame(self, style="Header.TFrame", padding=(18, 12))
-        top.pack(fill="x")
-        ttk.Label(top, text="Mis trapitos", style="Header.TLabel").pack(side="left")
+        shell = ttk.Frame(self, style="Workspace.TFrame")
+        shell.pack(fill="both", expand=True)
+        sidebar = ttk.Frame(shell, style="Sidebar.TFrame", width=245, padding=(18, 22))
+        sidebar.pack(side="left", fill="y")
+        sidebar.pack_propagate(False)
+        ttk.Label(sidebar, text="MIS TRAPITOS", style="SidebarBrand.TLabel").pack(anchor="w")
+        ttk.Label(sidebar, text="Gestión de tienda", style="SidebarMuted.TLabel").pack(anchor="w", pady=(2, 22))
+        ttk.Separator(sidebar, orient="horizontal").pack(fill="x", pady=(0, 18))
+        ttk.Label(sidebar, text="MÓDULOS", style="SidebarSection.TLabel").pack(anchor="w", pady=(0, 8))
+        navigation = ttk.Frame(sidebar, style="Sidebar.TFrame")
+        navigation.pack(fill="x")
+        modules = (
+            ("Productos", "Productos"),
+            ("Ventas", "Ventas"),
+            ("Contactos", "Contactos y usuarios"),
+            ("Promociones", "Promociones"),
+            ("Devoluciones", "Devoluciones y cancelaciones"),
+            ("Reportes", "Reportes"),
+            ("Rastreabilidad", "Rastreabilidad"),
+        )
+        self.navigation_buttons = []
+        for index, (label, title) in enumerate(modules):
+            button = ttk.Button(
+                navigation,
+                text=label,
+                style="SidebarActive.TButton" if index == 0 else "Sidebar.TButton",
+                command=lambda tab_index=index: self._select_module(tab_index),
+            )
+            button.pack(fill="x", pady=2)
+            self.navigation_buttons.append(button)
+        sidebar_footer = ttk.Frame(sidebar, style="Sidebar.TFrame")
+        sidebar_footer.pack(side="bottom", fill="x", pady=(20, 0))
+        ttk.Separator(sidebar_footer, orient="horizontal").pack(fill="x", pady=(0, 16))
+        ttk.Label(sidebar_footer, text="SESIÓN ACTIVA", style="SidebarSection.TLabel").pack(anchor="w")
+        ttk.Label(sidebar_footer, text=self.user["name"], style="SidebarBrand.TLabel").pack(anchor="w", pady=(5, 0))
+        ttk.Label(sidebar_footer, text=self.user["role"], style="SidebarMuted.TLabel").pack(anchor="w")
+        ttk.Button(
+            sidebar_footer,
+            text="Cerrar sesión",
+            style="SidebarLogout.TButton",
+            command=self.show_login,
+        ).pack(fill="x", pady=(12, 0))
+
+        workspace = ttk.Frame(shell, style="Workspace.TFrame")
+        workspace.pack(side="left", fill="both", expand=True)
+        workspace_header = ttk.Frame(workspace, style="WorkspaceHeader.TFrame", padding=(28, 16))
+        workspace_header.pack(fill="x")
+        ttk.Label(workspace_header, textvariable=self.module_title, style="WorkspaceTitle.TLabel").pack(side="left")
         ttk.Label(
-            top,
+            workspace_header,
             text=f"Usuario: {self.user['name']}  •  Rol: {self.user['role']}",
-            style="HeaderMuted.TLabel",
-        ).pack(side="left", padx=(20, 0))
-        ttk.Button(top, text="Cerrar sesion", style="Danger.TButton", command=self.show_login).pack(side="right")
-        nb = ttk.Notebook(self)
-        nb.pack(fill="both", expand=True, padx=18, pady=(6, 18))
+            style="WorkspaceMuted.TLabel",
+        ).pack(side="right")
+        content = ttk.Frame(workspace, style="Content.TFrame", padding=(20, 10, 20, 18))
+        content.pack(fill="both", expand=True)
+        nb = ttk.Notebook(content, style="Hidden.TNotebook")
+        nb.pack(fill="both", expand=True)
+        self.main_notebook = nb
         self.make_products_tab(nb)
         self.make_sales_tab(nb)
-        self.make_customers_tab(nb)
-        self.make_suppliers_tab(nb)
-        self.make_employees_tab(nb)
+        self.contactos_ui = ContactosUI(nb, self.db)
+        nb.add(self.contactos_ui, text="Contactos y usuarios")
         self.make_promotions_tab(nb)
         self.make_returns_tab(nb)
         self.make_reports_tab(nb)
         self.make_traceability_tab(nb)
+        nb.bind("<<NotebookTabChanged>>", self._on_module_changed)
+
+    def _select_module(self, tab_index):
+        if self.main_notebook is None:
+            return
+        self.main_notebook.select(tab_index)
+        self._on_module_changed()
+
+    def _on_module_changed(self, event=None):
+        if self.main_notebook is None:
+            return
+        selected = self.main_notebook.index(self.main_notebook.select())
+        titles = (
+            "Productos",
+            "Ventas",
+            "Contactos y usuarios",
+            "Promociones",
+            "Devoluciones y cancelaciones",
+            "Reportes",
+            "Rastreabilidad",
+        )
+        if 0 <= selected < len(titles):
+            self.module_title.set(titles[selected])
+        for index, button in enumerate(self.navigation_buttons):
+            button.configure(style="SidebarActive.TButton" if index == selected else "Sidebar.TButton")
 
     def clear_window(self):
         for child in self.winfo_children():
             child.destroy()
         self.productos_ui = None
+        self.contactos_ui = None
+        self.main_notebook = None
+        self.navigation_buttons = []
 
     def add_labeled_entry(self, parent, text, row, column, width=26, default=""):
         parent.columnconfigure(column + 1, weight=1)
@@ -1029,6 +1150,7 @@ self.login_password.get().strip())
             width = preferred_widths.get(col, 130)
             tree.column(col, width=width, minwidth=max(55, min(width, 90)), anchor="w", stretch=True)
         return tree
+
     def tree_clear(self, tree):
         for item in tree.get_children():
             tree.delete(item)
@@ -1053,8 +1175,7 @@ self.login_password.get().strip())
         form = ttk.LabelFrame(tab, text="Nueva venta", padding=10)
         form.pack(fill="x")
         self.sale_customer_id = self.add_labeled_entry(form, "ID cliente", 0, 0)
-        ttk.Label(form, text=f"Empleado: {self.user['name']} (ID {self.user['id']})").grid(row=0,
-column=2, columnspan=2, sticky="w")
+        ttk.Label(form, text=f"Empleado: {self.user['name']} (ID {self.user['id']})").grid(row=0, column=2, columnspan=2, sticky="w")
         ttk.Label(form, text="Metodo de pago").grid(row=1, column=0, sticky="e", padx=4, pady=3)
         self.sale_payment = ttk.Combobox(form, values=PAYMENT_METHODS, state="readonly", width=24)
         self.sale_payment.grid(row=1, column=1, sticky="w", padx=4, pady=3)
@@ -1072,8 +1193,7 @@ pady=8)
         body.pack(fill="both", expand=True, pady=8)
         cart_frame = ttk.LabelFrame(body, text="Carrito", padding=5)
         cart_frame.pack(side="left", fill="both", expand=True, padx=(0, 5))
-        self.cart_tree = self.make_tree(cart_frame, ("id", "codigo", "producto", "cantidad",
-"precio", "promo", "subtotal"), height=14)
+        self.cart_tree = self.make_tree(cart_frame, ("id", "codigo", "producto", "cantidad", "precio", "promo", "subtotal"), height=14)
         ticket_frame = ttk.LabelFrame(body, text="Ticket", padding=5)
         ticket_frame.pack(side="right", fill="both", expand=True, padx=(5, 0))
         self.ticket_text = tk.Text(
@@ -1100,7 +1220,7 @@ pady=8)
             qty = int(self.sale_quantity.get() or 1)
             product = self.db.one("SELECT * FROM products WHERE code=?", (code,))
             if not product:
-                raise ValueError("No existe producto con ese codigo."                 )
+                raise ValueError("No existe producto con ese codigo.")
             if qty <= 0:
                 raise ValueError("Cantidad no valida.")
             current = sum(int(item["quantity"]) for item in self.cart if int(item["product_id"]) == int(product["id"]))
@@ -1129,8 +1249,7 @@ pady=8)
             promo = self.db.active_promotion_percent(product["id"])
             line = float(product["sale_price"]) * int(item["quantity"]) * (1 - promo / 100)
             subtotal += line
-            self.cart_tree.insert("", tk.END, values=(product["id"], product["code"],
-product["name"], item["quantity"], money(product["sale_price"]), f"{promo:g}%", money(line)))
+            self.cart_tree.insert("", tk.END, values=(product["id"], product["code"], product["name"], item["quantity"], money(product["sale_price"]), f"{promo:g}%", money(line)))
         try:
             discount = float(self.sale_discount.get() or 0)
         except Exception:
@@ -1145,13 +1264,12 @@ product["name"], item["quantity"], money(product["sale_price"]), f"{promo:g}%", 
         try:
             customer = self.sale_customer_id.get().strip()
             customer_id = int(customer) if customer else None
-            sale_id, subtotal, discount_amount, total = self.db.register_sale(customer_id,
-int(self.user["id"]), self.sale_payment.get(), float(self.sale_discount.get() or 0), self.cart)
+            sale_id, subtotal, discount_amount, total = self.db.register_sale(customer_id, int(self.user["id"]), self.sale_payment.get(), float(self.sale_discount.get() or 0), self.cart)
             self.ticket_text.delete("1.0", tk.END)
             self.ticket_text.insert(tk.END, f"VENTA REGISTRADA\nTicket: {sale_id}\nFecha: {now_text()}\nSubtotal: {money(subtotal)}\nDescuento: {money(discount_amount)}\nTotal: {money(total)}\nMetodo: {self.sale_payment.get()}\n")
             self.clear_cart(True)
             self.refresh_products()
-            messagebox.showinfo("Venta", f"Venta registrada con ticket                  {sale_id}.")
+            messagebox.showinfo("Venta", f"Venta registrada con ticket {sale_id}.")
         except Exception as e:
             messagebox.showerror("Venta", str(e))
 
@@ -1160,318 +1278,6 @@ int(self.user["id"]), self.sale_payment.get(), float(self.sale_discount.get() or
         self.tree_clear(self.cart_tree)
         if not keep_ticket:
             self.ticket_text.delete("1.0", tk.END)
-
-    def make_customers_tab(self, nb):
-        tab = ttk.Frame(nb, padding=10)
-        nb.add(tab, text="Clientes")
-        form = ttk.LabelFrame(tab, text="Cliente", padding=10)
-        form.pack(fill="x")
-        self.c_name = self.add_labeled_entry(form, "Nombre", 0, 0)
-        self.c_phone = self.add_labeled_entry(form, "Telefono", 0, 2)
-        self.c_email = self.add_labeled_entry(form, "Correo", 1, 0)
-        self.c_address = self.add_labeled_entry(form, "Direccion", 1, 2)
-        self.c_region = self.add_labeled_entry(form, "Ciudad/region", 2, 0)
-        self.c_preferences = self.add_labeled_entry(form, "Preferencias", 2, 2)
-        ttk.Button(form, text="Guardar cliente", command=self.save_customer_ui).grid(row=3,
-column=0, pady=8)
-        ttk.Button(form, text="Limpiar", command=self.clear_customer_form                  ).grid(row=3, column=1,
-pady=8)
-        ttk.Button(form, text="Ver historial", command=self.show_customer_history).grid(row=3,
-column=2, pady=8)
-        ttk.Button(form, text="Correo profesional"            , command=self.show_customer_email).grid(row=3,
-column=3, pady=8)
-        table = ttk.LabelFrame(tab, text="Clientes registrados", padding=5)
-        table.pack(fill="both", expand=True, pady=8)
-        self.customers_tree = self.make_tree(table, ("id", "nombre", "telefono", "correo", "region",
-"preferencias"), height=16)
-        self.customers_tree.bind("<<TreeviewSelect>>", self.load_customer_selected)
-        self.refresh_customers       ()
-
-    def save_customer_ui(self):
-        try:
-            if not self.c_name.get().strip():
-                raise ValueError("El nombre es obligatorio.")
-            data = (self.c_name.get().strip(), self.c_phone.get().strip(),
-self.c_email.get().strip(), self.c_address.get().strip(), self.c_region.get().strip(),
-self.c_preferences.get().strip())
-            self.selected_customer_id = self.db.save_customer(self.selected_customer_id, data)
-            self.refresh_customers()
-            messagebox.showinfo("Clientes", "Cliente guardado.")
-        except Exception as e:
-            messagebox.showerror("Clientes", str(e))
-
-    def refresh_customers(self):
-        rows = self.db.query("SELECT id, name AS nombre, phone AS telefono, email AS correo, city_region AS region, preferences AS preferencias FROM customers ORDER BY id DESC"                     )
-        self.tree_clear(self.customers_tree)
-        for row in rows:
-            self.customers_tree.insert("", tk.END, values=[row[key] for key in row.keys()])
-
-    def load_customer_selected(self, event=None):
-        sel = self.customers_tree.selection()
-        if not sel:
-            return
-        customer_id = self.customers_tree.item(sel[0], "values")[0]
-        row = self.db.one("SELECT * FROM customers WHERE id=?", (customer_id,))
-        if not row:
-            return
-        self.selected_customer_id = row["id"]
-        self.set_entries([self.c_name, self.c_phone, self.c_email, self.c_address, self.c_region,
-self.c_preferences], [row["name"], row["phone"], row["email"], row["address"], row["city_region"],
-row["preferences"]])
-
-    def clear_customer_form(self):
-        self.selected_customer_id = None
-        for entry in [self.c_name, self.c_phone, self.c_email, self.c_address, self.c_region,
-self.c_preferences]:
-            entry.delete(0, tk.END)
-
-    def show_customer_history(self):
-        try:
-            if not self.selected_customer_id:
-                raise ValueError("Selecciona un cliente.")
-            rows = self.db.customer_history(self.selected_customer_id)
-            win = tk.Toplevel(self)
-            win.title("Historial de cliente")
-            text = tk.Text(
-                win,
-                width=105,
-                height=28,
-                bg=UI_COLORS["surface"],
-                fg=UI_COLORS["text"],
-                insertbackground=UI_COLORS["primary"],
-                relief="solid",
-                borderwidth=1,
-                highlightthickness=1,
-                highlightbackground=UI_COLORS["border"],
-                highlightcolor=UI_COLORS["accent"],
-                padx=12,
-                pady=10,
-                font=("Segoe UI", 10),
-            )
-            text.pack(fill="both", expand=True, padx=10, pady=10)
-            if not rows:
-                text.insert(tk.END, "Sin compras registradas.")
-            for row in rows:
-                text.insert(tk.END, f"Venta {row['venta']} | {row['fecha']} | {row['codigo']} {row['producto']} | Cantidad {row['cantidad']} | Linea {money(row['total_linea'])} | Total venta {money(row['total_venta'])} | {row['estado']}\n")
-        except Exception as e:
-            messagebox.showerror("Historial", str(e))
-
-    def build_customer_email_content(self, customer_id):
-        customer = self.db.one("SELECT * FROM customers WHERE id=?", (customer_id,))
-        if not customer:
-            raise ValueError("Cliente no encontrado.")
-        stats = self.db.one("SELECT COUNT(*) AS compras, COALESCE(SUM(total),0) AS total, MAX(sale_datetime) AS ultima FROM sales WHERE customer_id=? AND status='ACTIVA'", (customer_id,))
-        favorite = self.db.one("""SELECT p.name AS producto, SUM(si.quantity) AS piezas FROM sales s
-JOIN sale_items si ON si.sale_id=s.id JOIN products p ON p.id=si.product_id WHERE s.customer_id=?
-AND s.status='ACTIVA' GROUP BY p.id ORDER BY piezas DESC LIMIT 1""", (customer_id,))
-        name = customer["name"] or "cliente"
-        first_name = name.split()[0] if name.split() else name
-        preferences = customer["preferences"] or ""
-        compras = int(stats["compras"] or 0) if stats else 0
-        total = float(stats["total"] or 0) if stats else 0
-        ultima = stats["ultima"] if stats else ""
-        subject = "Gracias por su preferencia en Mis trapitos"
-        lines = []
-        lines.append(f"Estimado/a {first_name}:")
-        lines.append("")
-        lines.append("Esperamos que se encuentre muy bien. En Mis trapitos queremos agradecerle sinceramente su preferencia y la confianza que ha depositado en nuestra tienda.")
-        if compras > 0:
-            lines.append(f"De acuerdo con su historial, contamos con {compras} compra(s) registrada(s) a su nombre, por un total acumulado de {money(total)}.")
-            if ultima:
-                lines.append(f"Su compra mas reciente fue registrada el                   {ultima}.")
-        if favorite:
-            lines.append(f"Tambien identificamos que uno de los productos que mas ha adquirido es: {favorite['producto']}.")
-        if preferences:
-            lines.append(f"Tomaremos en cuenta sus preferencias registradas: {preferences}.")
-        lines.append("Queremos invitarle a visitarnos nuevamente para conocer nuestras prendas disponibles, promociones vigentes y nuevas opciones de temporada."                )
-        lines.append("Si desea consultar disponibilidad, tallas, colores o recibir atencion personalizada, con gusto podemos apoyarle por este mismo medio."                )
-        lines.append("")
-        lines.append("Quedamos atentos a cualquier duda o solicitud.")
-        lines.append("")
-        lines.append("Atentamente,")
-        lines.append("Mis trapitos")
-        lines.append("Tienda de ropa")
-        return customer, subject, "\n".join(lines)
-
-    def show_customer_email(self):
-        try:
-            if not self.selected_customer_id:
-                raise ValueError("Selecciona un cliente.")
-            customer, subject, body = self.build_customer_email_content(self.selected_customer_id)
-            win = tk.Toplevel(self)
-            win.title("Correo profesional para cliente")
-            win.geometry("820x560")
-            frame = ttk.Frame(win, padding=10)
-            frame.pack(fill="both", expand=True)
-            ttk.Label(frame, text=f"Para: {customer['email'] or 'Sin correo registrado'}",
-font=("Arial", 10, "bold")).pack(anchor="w", pady=(0, 5))
-            ttk.Label(frame, text="Asunto").pack(anchor="w")
-            subject_entry = ttk.Entry(frame)
-            subject_entry.pack(fill="x", pady=(0, 8))
-            subject_entry.insert(0, subject)
-            ttk.Label(frame, text="Mensaje").pack(anchor="w")
-            text = tk.Text(
-                frame,
-                height=22,
-                wrap="word",
-                bg=UI_COLORS["surface"],
-                fg=UI_COLORS["text"],
-                insertbackground=UI_COLORS["primary"],
-                relief="solid",
-                borderwidth=1,
-                highlightthickness=1,
-                highlightbackground=UI_COLORS["border"],
-                highlightcolor=UI_COLORS["accent"],
-                padx=12,
-                pady=10,
-                font=("Segoe UI", 10),
-            )
-            text.pack(fill="both", expand=True)
-            text.insert(tk.END, body)
-            buttons = ttk.Frame(frame)
-            buttons.pack(fill="x", pady=8)
-
-            def copy_email():
-                content = f"Asunto: {subject_entry.get().strip()}\n\n{text.get('1.0', tk.END).strip()}"
-                self.clipboard_clear()
-                self.clipboard_append(content)
-                messagebox.showinfo("Correo", "Correo copiado al portapapeles."                   )
-
-            def open_email_client():
-                email = customer["email"] or ""
-                if not email.strip():
-                    raise ValueError("El cliente no tiene correo registrado.")
-                mailto = "mailto:" + urllib.parse.quote(email.strip()) + "?subject=" + urllib.parse.quote(subject_entry.get().strip()) + "&body=" + urllib.parse.quote(text.get("1.0",
-tk.END).strip())
-                webbrowser.open(mailto)
-
-            def open_email_client_safe():
-                try:
-                    open_email_client()
-                except Exception as e:
-                    messagebox.showerror("Correo", str(e))
-
-            ttk.Button(buttons, text="Copiar correo", command=copy_email).pack(side="left", padx=4)
-            ttk.Button(buttons, text="Abrir en correo",
-command=open_email_client_safe).pack(side="left", padx=4)
-            ttk.Button(buttons, text="Cerrar", command=win.destroy).pack(side="right", padx=4)
-        except Exception as e:
-            messagebox.showerror("Correo", str(e))
-
-    def make_suppliers_tab(self, nb):
-        tab = ttk.Frame(nb, padding=10)
-        nb.add(tab, text="Proveedores")
-        form = ttk.LabelFrame(tab, text="Proveedor", padding=10)
-        form.pack(fill="x")
-        self.s_name = self.add_labeled_entry(form, "Nombre", 0, 0)
-        self.s_phone = self.add_labeled_entry(form, "Telefono", 0, 2)
-        self.s_address = self.add_labeled_entry(form, "Direccion", 1, 0)
-        self.s_products = self.add_labeled_entry(form, "Productos suministrados"                    , 1, 2)
-        self.s_last_order = self.add_labeled_entry(form, "Ultimo pedido", 2, 0,
-default=today_text())
-        ttk.Button(form, text="Guardar proveedor", command=self.save_supplier_ui).grid(row=3,
-column=0, pady=8)
-        ttk.Button(form, text="Limpiar", command=self.clear_supplier_form                  ).grid(row=3, column=1,
-pady=8)
-        table = ttk.LabelFrame(tab, text="Proveedores registrados", padding=5)
-        table.pack(fill="both", expand=True, pady=8)
-        self.suppliers_tree = self.make_tree(table, ("id", "nombre", "telefono", "direccion",
-"suministra", "ultimo_pedido"), height=16)
-        self.suppliers_tree.bind("<<TreeviewSelect>>"             , self.load_supplier_selected)
-        self.refresh_suppliers       ()
-
-    def save_supplier_ui(self):
-        try:
-            if not self.s_name.get().strip():
-                raise ValueError("El nombre es obligatorio.")
-            data = (self.s_name.get().strip(), self.s_phone.get().strip(),
-self.s_address.get().strip(), self.s_products.get().strip(), self.s_last_order.get().strip() or
-today_text())
-            self.selected_supplier_id = self.db.save_supplier(self.selected_supplier_id, data)
-            self.refresh_suppliers()
-            messagebox.showinfo("Proveedores", "Proveedor guardado.")
-        except Exception as e:
-            messagebox.showerror("Proveedores", str(e))
-
-    def refresh_suppliers(self):
-        rows = self.db.query("SELECT id, name AS nombre, phone AS telefono, address AS direccion, products_supplied AS suministra, last_order_date AS ultimo_pedido FROM suppliers ORDER BY id DESC"                        )
-        self.tree_clear(self.suppliers_tree)
-        for row in rows:
-            self.suppliers_tree.insert("", tk.END, values=[row[key] for key in row.keys()])
-
-    def load_supplier_selected(self, event=None):
-        sel = self.suppliers_tree.selection()
-        if not sel:
-            return
-        supplier_id = self.suppliers_tree.item(sel[0], "values")[0]
-        row = self.db.one("SELECT * FROM suppliers WHERE id=?", (supplier_id,))
-        if not row:
-            return
-        self.selected_supplier_id = row["id"]
-        self.set_entries([self.s_name, self.s_phone, self.s_address, self.s_products,
-self.s_last_order], [row["name"], row["phone"], row["address"], row["products_supplied"],
-row["last_order_date"]])
-
-    def clear_supplier_form(self):
-        self.selected_supplier_id = None
-        for entry in [self.s_name, self.s_phone, self.s_address, self.s_products,
-self.s_last_order]:
-            entry.delete(0, tk.END)
-        self.s_last_order.insert(0, today_text())
-
-    def make_employees_tab(self, nb):
-        tab = ttk.Frame(nb, padding=10)
-        nb.add(tab, text="Empleados")
-        form = ttk.LabelFrame(tab, text="Empleado", padding=10)
-        form.pack(fill="x")
-        self.e_name = self.add_labeled_entry(form, "Nombre", 0, 0)
-        self.e_username = self.add_labeled_entry(form, "Usuario", 0, 2)
-        self.e_password = self.add_labeled_entry(form, "Contraseña", 1, 0)
-        self.e_role = self.add_labeled_entry(form, "Rol", 1, 2)
-        ttk.Button(form, text="Guardar empleado", command=self.save_employee_ui).grid(row=2,
-column=0, pady=8)
-        ttk.Button(form, text="Limpiar", command=self.clear_employee_form                  ).grid(row=2, column=1,
-pady=8)
-        table = ttk.LabelFrame(tab, text="Empleados registrados", padding=5)
-        table.pack(fill="both", expand=True, pady=8)
-        self.employees_tree = self.make_tree(table, ("id", "nombre", "usuario", "rol"), height=16)
-        self.employees_tree.bind("<<TreeviewSelect>>", self.load_employee_selected)
-        self.refresh_employees       ()
-
-    def save_employee_ui(self):
-        try:
-            if not self.e_name.get().strip() or not self.e_username.get().strip():
-                raise ValueError("Nombre y usuario son obligatorios.")
-            self.selected_employee_id = self.db.save_employee(self.selected_employee_id,
-self.e_name.get().strip(), self.e_username.get().strip(), self.e_password.get().strip(),
-self.e_role.get().strip() or "Ventas")
-            self.refresh_employees()
-            messagebox.showinfo("Empleados", "Empleado guardado.")
-        except Exception as e:
-            messagebox.showerror("Empleados", str(e))
-
-    def refresh_employees(self):
-        rows = self.db.query("SELECT id, name AS nombre, username AS usuario, role AS rol FROM employees ORDER BY id DESC")
-        self.tree_clear(self.employees_tree)
-        for row in rows:
-            self.employees_tree.insert("", tk.END, values=[row[key] for key in row.keys()])
-
-    def load_employee_selected(self, event=None):
-        sel = self.employees_tree.selection()
-        if not sel:
-            return
-        employee_id = self.employees_tree.item(sel[0], "values")[0]
-        row = self.db.one("SELECT * FROM employees WHERE id=?", (employee_id,))
-        if not row:
-            return
-        self.selected_employee_id = row["id"]
-        self.set_entries([self.e_name, self.e_username, self.e_password, self.e_role], [row["name"],
-row["username"], "", row["role"]])
-
-    def clear_employee_form(self):
-        self.selected_employee_id = None
-        for entry in [self.e_name, self.e_username, self.e_password, self.e_role]:
-            entry.delete(0, tk.END)
 
     def make_promotions_tab(self, nb):
         tab = ttk.Frame(nb, padding=10)
@@ -1482,16 +1288,14 @@ row["username"], "", row["role"]])
         self.pr_discount = self.add_labeled_entry(form, "Descuento %", 0, 2)
         self.pr_start = self.add_labeled_entry(form, "Inicio", 1, 0, default=today_text())
         self.pr_end = self.add_labeled_entry(form, "Fin", 1, 2, default=date_offset(30))
-        ttk.Button(form, text="Guardar promocion", command=self.save_promotion_ui).grid(row=2,
-column=0, pady=8)
-        ttk.Button(form, text="Limpiar", command=self.clear_promotion_form).grid(row=2, column=1,
-pady=8)
+        ttk.Button(form, text="Guardar promocion", command=self.save_promotion_ui).grid(row=2, column=0, pady=8)
+        ttk.Button(form, text="Limpiar", command=self.clear_promotion_form).grid(row=2, column=1, pady=8)
         table = ttk.LabelFrame(tab, text="Promociones registradas", padding=5)
         table.pack(fill="both", expand=True, pady=8)
-        self.promotions_tree = self.make_tree(table, ("id", "producto_id", "codigo", "producto",
-"descuento", "inicio", "fin"), height=16)
+        self.promotions_tree = self.make_tree(table, ("id", "producto_id", "codigo", "producto", "descuento", "inicio", "fin"), height=16)
         self.promotions_tree.bind("<<TreeviewSelect>>", self.load_promotion_selected)
         self.refresh_promotions()
+
     def save_promotion_ui(self):
         try:
             product_id = int(self.pr_product.get())
@@ -1500,9 +1304,7 @@ pady=8)
                 raise ValueError("Descuento no valido.")
             if not self.db.one("SELECT id FROM products WHERE id=?", (product_id,)):
                 raise ValueError("Producto no encontrado.")
-            self.selected_promotion_id = self.db.save_promotion(self.selected_promotion_id,
-product_id, discount, self.pr_start.get().strip() or today_text(), self.pr_end.get().strip() or
-today_text())
+            self.selected_promotion_id = self.db.save_promotion(self.selected_promotion_id, product_id, discount, self.pr_start.get().strip() or today_text(), self.pr_end.get().strip() or today_text())
             self.refresh_promotions()
             messagebox.showinfo("Promociones", "Promocion guardada.")
         except Exception as e:
@@ -1511,7 +1313,7 @@ today_text())
     def refresh_promotions(self):
         rows = self.db.query("""SELECT pr.id, pr.product_id AS producto_id, p.code AS codigo, p.name
 AS producto, pr.discount_percent AS descuento, pr.start_date AS inicio, pr.end_date AS fin FROM
-promotions pr JOIN products p ON p.id=pr.product_id ORDER BY pr.id DESC"""                  )
+promotions pr JOIN products p ON p.id=pr.product_id ORDER BY pr.id DESC""")
         self.tree_clear(self.promotions_tree)
         for row in rows:
             self.promotions_tree.insert("", tk.END, values=[row[key] for key in row.keys()])
@@ -1525,8 +1327,7 @@ promotions pr JOIN products p ON p.id=pr.product_id ORDER BY pr.id DESC"""      
         if not row:
             return
         self.selected_promotion_id = row["id"]
-        self.set_entries([self.pr_product, self.pr_discount, self.pr_start, self.pr_end],
-[row["product_id"], row["discount_percent"], row["start_date"], row["end_date"]])
+        self.set_entries([self.pr_product, self.pr_discount, self.pr_start, self.pr_end], [row["product_id"], row["discount_percent"], row["start_date"], row["end_date"]])
 
     def clear_promotion_form(self):
         self.selected_promotion_id = None
@@ -1544,31 +1345,26 @@ promotions pr JOIN products p ON p.id=pr.product_id ORDER BY pr.id DESC"""      
         self.r_product = self.add_labeled_entry(form, "ID producto", 0, 2)
         self.r_quantity = self.add_labeled_entry(form, "Cantidad", 1, 0, default="1")
         self.r_reason = self.add_labeled_entry(form, "Motivo devolucion", 1, 2)
-        ttk.Button(form, text="Registrar devolucion", command=self.return_item_ui).grid(row=2,
-column=0, pady=8)
-        self.cancel_sale_entry = self.add_labeled_entry(form, "Venta a cancelar"                    , 3, 0)
+        ttk.Button(form, text="Registrar devolucion", command=self.return_item_ui).grid(row=2, column=0, pady=8)
+        self.cancel_sale_entry = self.add_labeled_entry(form, "Venta a cancelar", 3, 0)
         self.cancel_reason = self.add_labeled_entry(form, "Motivo cancelacion", 3, 2)
-        ttk.Button(form, text="Cancelar venta", style="Danger.TButton", command=self.cancel_sale_ui).grid(row=4, column=0,
-pady=8)
+        ttk.Button(form, text="Cancelar venta", command=self.cancel_sale_ui).grid(row=4, column=0, pady=8)
         body = ttk.Frame(tab)
         body.pack(fill="both", expand=True, pady=8)
         returns_frame = ttk.LabelFrame(body, text="Devoluciones", padding=5)
         returns_frame.pack(side="left", fill="both", expand=True, padx=(0, 5))
-        self.returns_tree = self.make_tree(returns_frame, ("id", "venta", "producto", "cantidad",
-"fecha", "motivo"), height=14)
+        self.returns_tree = self.make_tree(returns_frame, ("id", "venta", "producto", "cantidad", "fecha", "motivo"), height=14)
         cancellations_frame = ttk.LabelFrame(body, text="Cancelaciones", padding=5)
         cancellations_frame.pack(side="right", fill="both", expand=True, padx=(5, 0))
-        self.cancellations_tree = self.make_tree(cancellations_frame, ("id", "venta", "fecha",
-"motivo"), height=14)
+        self.cancellations_tree = self.make_tree(cancellations_frame, ("id", "venta", "fecha", "motivo"), height=14)
         self.refresh_returns()
 
     def return_item_ui(self):
         try:
-            self.db.return_item(int(self.r_sale.get()), int(self.r_product.get()),
-int(self.r_quantity.get()), self.r_reason.get().strip())
+            self.db.return_item(int(self.r_sale.get()), int(self.r_product.get()), int(self.r_quantity.get()), self.r_reason.get().strip())
             self.refresh_returns()
             self.refresh_products()
-            messagebox.showinfo("Devolucion", "Devolucion registrada."                 )
+            messagebox.showinfo("Devolucion", "Devolucion registrada.")
         except Exception as e:
             messagebox.showerror("Devolucion", str(e))
 
@@ -1584,11 +1380,11 @@ int(self.r_quantity.get()), self.r_reason.get().strip())
     def refresh_returns(self):
         rows = self.db.query("""SELECT r.id, r.sale_id AS venta, p.name AS producto, r.quantity AS
 cantidad, r.return_datetime AS fecha, r.reason AS motivo FROM returns r JOIN products p ON
-p.id=r.product_id ORDER BY r.id DESC"""         )
+p.id=r.product_id ORDER BY r.id DESC""")
         self.tree_clear(self.returns_tree)
         for row in rows:
             self.returns_tree.insert("", tk.END, values=[row[key] for key in row.keys()])
-        rows = self.db.query("SELECT id, sale_id AS venta, cancel_datetime AS fecha, reason AS motivo FROM cancellations ORDER BY id DESC"          )
+        rows = self.db.query("SELECT id, sale_id AS venta, cancel_datetime AS fecha, reason AS motivo FROM cancellations ORDER BY id DESC")
         self.tree_clear(self.cancellations_tree)
         for row in rows:
             self.cancellations_tree.insert("", tk.END, values=[row[key] for key in row.keys()])
@@ -1602,11 +1398,9 @@ p.id=r.product_id ORDER BY r.id DESC"""         )
         self.report_combo = ttk.Combobox(controls, values=REPORTS, state="readonly", width=48)
         self.report_combo.grid(row=0, column=1, padx=4, pady=4, sticky="w")
         self.report_combo.set(REPORTS[0])
-        self.report_param = self.add_labeled_entry            (controls, "Parametro", 0, 2, width=30)
-        ttk.Button(controls, text="Ejecutar", command=self.run_report).grid(row=0, column=4, padx=4,
-pady=4)
-        ttk.Button(controls, text="Exportar CSV", command=self.export_report_csv).grid(row=0,
-column=5, padx=4, pady=4)
+        self.report_param = self.add_labeled_entry(controls, "Parametro", 0, 2, width=30)
+        ttk.Button(controls, text="Ejecutar", command=self.run_report).grid(row=0, column=4, padx=4, pady=4)
+        ttk.Button(controls, text="Exportar CSV", command=self.export_report_csv).grid(row=0, column=5, padx=4, pady=4)
         self.report_hint = ttk.Label(controls, text="Parametro se usa en reportes por categoria, proveedor, cliente, precio o stock bajo.")
         self.report_hint.grid(row=1, column=0, columnspan=6, sticky="w", padx=4)
         table = ttk.LabelFrame(tab, text="Resultado", padding=5)
@@ -1663,8 +1457,7 @@ column=5, padx=4, pady=4)
         trace_tree = self.make_tree(lower, ("id", "requerimiento", "modulo", "prueba"), height=18)
         for item in TRACEABILITY:
             trace_tree.insert("", tk.END, values=item)
-        ttk.Button(tab, text="Ejecutar pruebas basicas",
-command=self.run_basic_tests).pack(anchor="w", pady=5)
+        ttk.Button(tab, text="Ejecutar pruebas basicas", command=self.run_basic_tests).pack(anchor="w", pady=5)
 
     def run_basic_tests(self):
         try:
@@ -1675,10 +1468,8 @@ command=self.run_basic_tests).pack(anchor="w", pady=5)
                 raise ValueError("Faltan productos o empleados para probar.")
             initial_stock = int(product["stock"])
             if initial_stock < 1:
-                raise ValueError("No hay stock suficiente para la prueba."                  )
-            sale_id, subtotal, discount_amount, total = self.db.register_sale(customer["id"] if
-customer else None, employee["id"], PAYMENT_METHODS[0], 0, [{"product_id": product["id"],
-"quantity": 1}])
+                raise ValueError("No hay stock suficiente para la prueba.")
+            sale_id, subtotal, discount_amount, total = self.db.register_sale(customer["id"] if customer else None, employee["id"], PAYMENT_METHODS[0], 0, [{"product_id": product["id"], "quantity": 1}])
             after = self.db.scalar("SELECT stock FROM products WHERE id=?", (product["id"],))
             movement = self.db.one("SELECT id FROM inventory_movements WHERE related_sale_id=? AND movement_type='SALIDA'", (sale_id,))
             if after != initial_stock - 1 or not movement:
@@ -1689,9 +1480,6 @@ customer else None, employee["id"], PAYMENT_METHODS[0], 0, [{"product_id": produ
             messagebox.showerror("Pruebas", str(e))
 
 
-
-
 if __name__ == "__main__":
     app = App()
     app.mainloop()
-
