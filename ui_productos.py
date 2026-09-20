@@ -21,6 +21,10 @@ class ProductosUI(ttk.Frame):
 
     def __init__(self, parent, db):
         super().__init__(parent, padding=10)
+        self.configure(style="Surface.TFrame")
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=0)
+        self.rowconfigure(0, weight=1)
         self.db = db
         self.selected_product_id = None
         self.product_photo_ref = None
@@ -29,12 +33,16 @@ class ProductosUI(ttk.Frame):
         self.actualizar_inventario()
 
     def _build_widgets(self):
-        left = ttk.Frame(self)
-        left.pack(side="left", fill="both", expand=True)
-        right = ttk.LabelFrame(self, text="Foto del producto", padding=10)
-        right.pack(side="right", fill="y", padx=(10, 0))
+        left = ttk.Frame(self, style="Surface.TFrame")
+        left.grid(row=0, column=0, sticky="nsew")
+        left.columnconfigure(0, weight=1)
+        left.rowconfigure(1, weight=1)
+        right = ttk.LabelFrame(self, text="Vista previa", padding=12)
+        right.grid(row=0, column=1, sticky="ns", padx=(14, 0))
         form = ttk.LabelFrame(left, text="Producto", padding=10)
-        form.pack(fill="x")
+        form.grid(row=0, column=0, sticky="ew")
+        form.columnconfigure(1, weight=1)
+        form.columnconfigure(3, weight=1)
         self.p_code = self._add_labeled_entry(form, "Codigo", 0, 0)
         self.p_name = self._add_labeled_entry(form, "Nombre", 0, 2)
         self.p_category = self._add_labeled_entry(form, "Categoria", 1, 0)
@@ -51,32 +59,34 @@ class ProductosUI(ttk.Frame):
         self.p_season = self._add_labeled_entry(form, "Temporada", 5, 2)
         self.p_image = self._add_labeled_entry(form, "Foto", 6, 0, width=58)
         ttk.Button(form, text="Seleccionar foto", command=self.choose_product_image).grid(
-            row=6, column=2, pady=4
+            row=6, column=2, padx=4, pady=5, sticky="ew"
         )
         ttk.Button(form, text="Agregar producto", command=self.add_product_ui).grid(
-            row=7, column=0, pady=8
+            row=7, column=0, padx=4, pady=8, sticky="ew"
         )
         ttk.Button(form, text="Editar producto", command=self.edit_product_ui).grid(
-            row=7, column=1, pady=8
+            row=7, column=1, padx=4, pady=8, sticky="ew"
         )
         ttk.Button(form, text="Limpiar", command=self.clear_product_form).grid(
-            row=7, column=2, pady=8
+            row=7, column=2, padx=4, pady=8, sticky="ew"
         )
         ttk.Button(form, text="Ver foto", command=self.show_selected_product_image).grid(
-            row=7, column=3, pady=8
+            row=7, column=3, padx=4, pady=8, sticky="ew"
         )
         ttk.Button(form, text="Exportar inventario", command=self.export_inventory_csv).grid(
-            row=8, column=0, pady=8
+            row=8, column=0, padx=4, pady=(0, 8), sticky="ew"
         )
         self.product_image_label = tk.Label(
-            right, text="Selecciona un producto", anchor="center", width=34,
-            height=16, relief="groove", bg="white"
+            right, text="Selecciona un producto", anchor="center", width=30,
+            height=14, relief="groove", bg="#FFFFFF", fg="#64748B",
+            font=("Segoe UI", 10), highlightthickness=1,
+            highlightbackground="#D6DEE8",
         )
-        self.product_image_label.pack(padx=10, pady=10)
-        self.product_image_text = ttk.Label(right, text="", wraplength=240, justify="center")
+        self.product_image_label.pack(fill="both", expand=True, padx=6, pady=6)
+        self.product_image_text = ttk.Label(right, text="", wraplength=230, justify="center", style="Muted.TLabel")
         self.product_image_text.pack(padx=10, pady=5)
         table = ttk.LabelFrame(left, text="Inventario", padding=5)
-        table.pack(fill="both", expand=True, pady=8)
+        table.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
         self.products_tree = self._make_tree(
             table,
             ("id", "codigo", "producto", "categoria", "talla", "color", "stock", "precio", "proveedor"),
@@ -86,9 +96,10 @@ class ProductosUI(ttk.Frame):
 
     @staticmethod
     def _add_labeled_entry(parent, text, row, column, width=26, default=""):
-        ttk.Label(parent, text=text).grid(row=row, column=column, sticky="e", padx=4, pady=3)
+        parent.columnconfigure(column + 1, weight=1)
+        ttk.Label(parent, text=text).grid(row=row, column=column, sticky="e", padx=(4, 8), pady=5)
         entry = ttk.Entry(parent, width=width)
-        entry.grid(row=row, column=column + 1, sticky="w", padx=4, pady=3)
+        entry.grid(row=row, column=column + 1, sticky="ew", padx=(0, 10), pady=5)
         if default:
             entry.insert(0, default)
         return entry
@@ -106,9 +117,14 @@ class ProductosUI(ttk.Frame):
         xscroll.grid(row=1, column=0, sticky="ew")
         container.rowconfigure(0, weight=1)
         container.columnconfigure(0, weight=1)
+        preferred_widths = {
+            "id": 58, "codigo": 120, "producto": 190, "categoria": 125,
+            "talla": 75, "color": 100, "stock": 75, "precio": 110, "proveedor": 150,
+        }
         for col in columns:
             tree.heading(col, text=col)
-            tree.column(col, width=130, anchor="w")
+            width = preferred_widths.get(col, 130)
+            tree.column(col, width=width, minwidth=max(55, min(width, 90)), anchor="w", stretch=True)
         return tree
 
     def choose_product_image(self):
