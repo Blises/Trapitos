@@ -18,6 +18,7 @@ from db import (
 )
 
 from ui_contactos import ContactosUI
+from ui_ventas import VentasUI, ServicioVentas
 
 APP_TITLE = "Mis trapitos - Sistema local"
 APP_VERSION = "7.0"
@@ -34,6 +35,7 @@ CONFIG_ITEMS = [
     ("CI-05", "Usuario inicial", "admin / 1234", "Controlado"),
     ("CI-06", "Modulo de productos", "ui_productos.py", "Controlado"),
     ("CI-07", "Modulo de contactos y usuarios", "ui_contactos.py", "Controlado"),
+    ("CI-08", "Modulo de ventas", "ui_ventas.py", "Controlado"),
 ]
 
 TRACEABILITY = [
@@ -135,8 +137,8 @@ class App(tk.Tk):
         self.user = None
         self.productos_ui = None
         self.contactos_ui = None
+        self.ventas_ui = None
         self.selected_promotion_id = None
-        self.cart = []
         self.protocol("WM_DELETE_WINDOW"          , self.on_close)
 
     def on_close(self):
@@ -155,7 +157,8 @@ class App(tk.Tk):
         nb = ttk.Notebook(self)
         nb.pack(fill="both", expand=True, padx=10, pady=10)
         self.make_products_tab(nb)
-        self.make_sales_tab(nb)
+        self.ventas_ui = VentasUI(nb, self.db, self.user, on_venta_registrada=self.refresh_products)
+        nb.add(self.ventas_ui, text="Ventas")
         self.contactos_ui = ContactosUI(nb, self.db)
         nb.add(self.contactos_ui, text="Contactos y usuarios")
         self.make_promotions_tab(nb)
@@ -168,6 +171,7 @@ class App(tk.Tk):
             child.destroy()
         self.productos_ui = None
         self.contactos_ui = None
+        self.ventas_ui = None
 
     def add_labeled_entry(self, parent, text, row, column, width=26, default=""):
         ttk.Label(parent, text=text).grid(row=row, column=column, sticky="e", padx=4, pady=3)
@@ -211,98 +215,6 @@ class App(tk.Tk):
         """Actualiza productos tras una venta, devolucion o cancelacion."""
         if self.productos_ui is not None:
             self.productos_ui.actualizar_inventario()
-
-    def make_sales_tab(self, nb):
-        tab = ttk.Frame(nb, padding=10)
-        nb.add(tab, text="Ventas")
-        form = ttk.LabelFrame(tab, text="Nueva venta", padding=10)
-        form.pack(fill="x")
-        self.sale_customer_id = self.add_labeled_entry(form, "ID cliente", 0, 0)
-        ttk.Label(form, text=f"Empleado: {self.user['name']} (ID {self.user['id']})").grid(row=0, column=2, columnspan=2, sticky="w")
-        ttk.Label(form, text="Metodo de pago").grid(row=1, column=0, sticky="e", padx=4, pady=3)
-        self.sale_payment = ttk.Combobox(form, values=PAYMENT_METHODS, state="readonly", width=24)
-        self.sale_payment.grid(row=1, column=1, sticky="w", padx=4, pady=3)
-        self.sale_payment.set(PAYMENT_METHODS[0])
-        self.sale_discount = self.add_labeled_entry(form, "Descuento venta %", 1, 2, default="0")
-        self.sale_product_code = self.add_labeled_entry(form, "Codigo producto", 2, 0)
-        self.sale_quantity = self.add_labeled_entry(form, "Cantidad", 2, 2, default="1")
-        ttk.Button(form, text="Agregar al carrito", command=self.add_cart_item).grid(row=3, column=0, pady=8)
-        ttk.Button(form, text="Registrar venta", command=self.register_sale_ui).grid(row=3, column=1, pady=8)
-        ttk.Button(form, text="Vaciar carrito", command=self.clear_cart).grid(row=3, column=2, pady=8)
-        body = ttk.Frame(tab)
-        body.pack(fill="both", expand=True, pady=8)
-        cart_frame = ttk.LabelFrame(body, text="Carrito", padding=5)
-        cart_frame.pack(side="left", fill="both", expand=True, padx=(0, 5))
-        self.cart_tree = self.make_tree(cart_frame, ("id", "codigo", "producto", "cantidad", "precio", "promo", "subtotal"), height=14)
-        ticket_frame = ttk.LabelFrame(body, text="Ticket", padding=5)
-        ticket_frame.pack(side="right", fill="both", expand=True, padx=(5, 0))
-        self.ticket_text = tk.Text(ticket_frame, height=16, wrap="word")
-        self.ticket_text.pack(fill="both", expand=True)
-
-    def add_cart_item(self):
-        try:
-            code = self.sale_product_code.get().strip()
-            qty = int(self.sale_quantity.get() or 1)
-            product = self.db.one("SELECT * FROM products WHERE code=?", (code,))
-            if not product:
-                raise ValueError("No existe producto con ese codigo.")
-            if qty <= 0:
-                raise ValueError("Cantidad no valida.")
-            current = sum(int(item["quantity"]) for item in self.cart if int(item["product_id"]) == int(product["id"]))
-            if current + qty > int(product["stock"]):
-                raise ValueError("Stock insuficiente.")
-            for item in self.cart:
-                if int(item["product_id"]) == int(product["id"]):
-                    item["quantity"] += qty
-                    break
-            else:
-                self.cart.append({"product_id": product["id"], "quantity": qty})
-            self.sale_product_code.delete(0, tk.END)
-            self.sale_quantity.delete(0, tk.END)
-            self.sale_quantity.insert(0, "1")
-            self.refresh_cart()
-        except Exception as e:
-            messagebox.showerror("Carrito", str(e))
-
-    def refresh_cart(self):
-        self.tree_clear(self.cart_tree)
-        subtotal = 0.0
-        for item in self.cart:
-            product = self.db.one("SELECT * FROM products WHERE id=?", (item["product_id"],))
-            if not product:
-                continue
-            promo = self.db.active_promotion_percent(product["id"])
-            line = float(product["sale_price"]) * int(item["quantity"]) * (1 - promo / 100)
-            subtotal += line
-            self.cart_tree.insert("", tk.END, values=(product["id"], product["code"], product["name"], item["quantity"], money(product["sale_price"]), f"{promo:g}%", money(line)))
-        try:
-            discount = float(self.sale_discount.get() or 0)
-        except Exception:
-            discount = 0
-        total = subtotal * (1 - discount / 100)
-        self.ticket_text.delete("1.0", tk.END)
-        self.ticket_text.insert(tk.END, f"Subtotal con promociones: {money(subtotal)}\n")
-        self.ticket_text.insert(tk.END, f"Descuento general: {discount:g}%\n")
-        self.ticket_text.insert(tk.END, f"Total estimado: {money(total)}\n")
-
-    def register_sale_ui(self):
-        try:
-            customer = self.sale_customer_id.get().strip()
-            customer_id = int(customer) if customer else None
-            sale_id, subtotal, discount_amount, total = self.db.register_sale(customer_id, int(self.user["id"]), self.sale_payment.get(), float(self.sale_discount.get() or 0), self.cart)
-            self.ticket_text.delete("1.0", tk.END)
-            self.ticket_text.insert(tk.END, f"VENTA REGISTRADA\nTicket: {sale_id}\nFecha: {now_text()}\nSubtotal: {money(subtotal)}\nDescuento: {money(discount_amount)}\nTotal: {money(total)}\nMetodo: {self.sale_payment.get()}\n")
-            self.clear_cart(True)
-            self.refresh_products()
-            messagebox.showinfo("Venta", f"Venta registrada con ticket {sale_id}.")
-        except Exception as e:
-            messagebox.showerror("Venta", str(e))
-
-    def clear_cart(self, keep_ticket=False):
-        self.cart = []
-        self.tree_clear(self.cart_tree)
-        if not keep_ticket:
-            self.ticket_text.delete("1.0", tk.END)
 
     def make_promotions_tab(self, nb):
         tab = ttk.Frame(nb, padding=10)
@@ -494,7 +406,9 @@ p.id=r.product_id ORDER BY r.id DESC""")
             initial_stock = int(product["stock"])
             if initial_stock < 1:
                 raise ValueError("No hay stock suficiente para la prueba.")
-            sale_id, subtotal, discount_amount, total = self.db.register_sale(customer["id"] if customer else None, employee["id"], PAYMENT_METHODS[0], 0, [{"product_id": product["id"], "quantity": 1}])
+            servicio = ServicioVentas(self.db)
+            servicio.agregar_producto(product["code"], 1)
+            sale_id = servicio.registrar_venta(customer["id"] if customer else None, employee["id"], PAYMENT_METHODS[0], 0).sale_id
             after = self.db.scalar("SELECT stock FROM products WHERE id=?", (product["id"],))
             movement = self.db.one("SELECT id FROM inventory_movements WHERE related_sale_id=? AND movement_type='SALIDA'", (sale_id,))
             if after != initial_stock - 1 or not movement:
