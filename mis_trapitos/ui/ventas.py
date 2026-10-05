@@ -2,8 +2,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from typing import NamedTuple
 
-from db import PAYMENT_METHODS
-
+from mis_trapitos.data.database import PAYMENT_METHODS
 
 def money(value):
     try:

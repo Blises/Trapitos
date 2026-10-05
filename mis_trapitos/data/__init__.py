@@ -1,0 +1,1 @@
+"""Capa de datos: conexión, esquema y consultas SQLite."""
