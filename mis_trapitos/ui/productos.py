@@ -137,7 +137,7 @@ class ProductosUI(ttk.Frame):
         path = path.strip().strip('"')
         if os.path.exists(path):
             return path
-        base = os.path.dirname(os.path.abspath(__file__))
+        base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         alternative = os.path.join(base, path)
         return alternative if os.path.exists(alternative) else ""
 
@@ -145,7 +145,7 @@ class ProductosUI(ttk.Frame):
         source_path = self.resolve_image_path(source_path) or source_path
         if not os.path.exists(source_path):
             raise ValueError("No se encontro la imagen seleccionada.")
-        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), IMAGE_DIR)
+        base = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), IMAGE_DIR)
         os.makedirs(base, exist_ok=True)
         name, ext = os.path.splitext(os.path.basename(source_path))
         ext = ext.lower()

@@ -7,8 +7,8 @@ from datetime import date, datetime, timedelta
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageDraw
 
-from ui_productos import IMAGE_DIR, ProductosUI
-from db import (
+from mis_trapitos.ui.productos import IMAGE_DIR, ProductosUI
+from mis_trapitos.data.database import (
     Database,
     DB_NAME,
     PAYMENT_METHODS,
@@ -17,8 +17,8 @@ from db import (
     date_offset
 )
 
-from ui_contactos import ContactosUI
-from ui_ventas import VentasUI, ServicioVentas
+from mis_trapitos.ui.contactos import ContactosUI
+from mis_trapitos.ui.ventas import VentasUI, ServicioVentas
 
 APP_TITLE = "Mis trapitos - Sistema local"
 APP_VERSION = "7.0"
