@@ -1,0 +1,1 @@
+"""Reglas de negocio (se poblará en issues posteriores)."""
