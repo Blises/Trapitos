@@ -2,36 +2,32 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from mis_trapitos.data.database import today_text, date_offset
-from mis_trapitos.ui.base import add_labeled_entry, make_tree, tree_clear, set_entries
+from mis_trapitos.ui.base import ActionBar, FormGrid, ScrollablePage, make_tree, tree_clear, set_entries
 
 
-class PromocionesUI(ttk.Frame):
+class PromocionesUI(ScrollablePage):
     def __init__(self, parent, db):
-        super().__init__(parent, padding=10)
+        super().__init__(parent)
         self.db = db
         self.selected_promotion_id = None
         self._build_widgets()
 
     def _build_widgets(self):
-        form = ttk.LabelFrame(self, text="Promocion", padding=10)
+        form = ttk.LabelFrame(self.body, text="Datos de la promoción", padding=(0, 12))
         form.pack(fill="x")
-        self.pr_product = add_labeled_entry(form, "ID producto", 0, 0)
-        self.pr_discount = add_labeled_entry(form, "Descuento %", 0, 2)
-        self.pr_start = add_labeled_entry(form, "Inicio", 1, 0, default=today_text())
-        self.pr_end = add_labeled_entry(form, "Fin", 1, 2, default=date_offset(30))
-        ttk.Button(form, text="Guardar promocion", command=self.save_promotion_ui).grid(
-            row=2, column=0, pady=8
-        )
-        ttk.Button(form, text="Limpiar", command=self.clear_promotion_form).grid(
-            row=2, column=1, pady=8
-        )
-        table = ttk.LabelFrame(self, text="Promociones registradas", padding=5)
-        table.pack(fill="both", expand=True, pady=8)
-        self.promotions_tree = make_tree(
-            table,
-            ("id", "producto_id", "codigo", "producto", "descuento", "inicio", "fin"),
-            height=16,
-        )
+        fields = FormGrid(form, columns=4, min_column_width=180)
+        fields.pack(fill="x")
+        self.pr_product = fields.add_field("ID producto")
+        self.pr_discount = fields.add_field("Descuento (%)")
+        self.pr_start = fields.add_field("Fecha de inicio", default=today_text())
+        self.pr_end = fields.add_field("Fecha de fin", default=date_offset(30))
+        actions = ActionBar(form)
+        actions.pack(fill="x")
+        actions.add("Guardar promoción", self.save_promotion_ui, "Accent.TButton")
+        actions.add("Limpiar", self.clear_promotion_form)
+        table = ttk.LabelFrame(self.body, text="Promociones registradas", padding=(0, 12, 0, 0))
+        table.pack(fill="both", expand=True, pady=(16, 0))
+        self.promotions_tree = make_tree(table, ("id", "producto_id", "codigo", "producto", "descuento", "inicio", "fin"), height=8)
         self.promotions_tree.bind("<<TreeviewSelect>>", self.load_promotion_selected)
         self.refresh_promotions()
 
