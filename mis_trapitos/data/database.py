@@ -184,8 +184,8 @@ class Database:
         self.conn.commit()
 
     def create_sample_images(self):
-        from ui_productos import IMAGE_DIR
-        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), IMAGE_DIR)
+        from mis_trapitos.ui.productos import IMAGE_DIR
+        base = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), IMAGE_DIR)
         os.makedirs(base, exist_ok=True)
         specs = [
             ("camisa_roja.jpg", (210, 70, 70), (245, 210, 210), "Camisa"),
