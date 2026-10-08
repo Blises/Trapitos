@@ -3,6 +3,7 @@ from tkinter import messagebox, ttk
 from typing import NamedTuple
 
 from mis_trapitos.data.database import PAYMENT_METHODS
+from mis_trapitos.ui.base import ActionBar, FormGrid, ScrollablePage, make_tree
 
 def money(value):
     try:
@@ -112,96 +113,55 @@ class ServicioVentas:
         return ResultadoVenta(sale_id, fecha, subtotal, monto, total, metodo_pago)
 
 
-class VentasUI(ttk.Frame):
+class VentasUI(ScrollablePage):
     """Pestaña de ventas. `on_venta_registrada` se invoca tras guardar una venta
     para que otras pestañas (p. ej. Productos) refresquen su inventario."""
 
     def __init__(self, parent, db, user, on_venta_registrada=None):
-        super().__init__(parent, padding=10)
+        super().__init__(parent)
         self.db = db
         self.user = user
         self.on_venta_registrada = on_venta_registrada
         self.servicio = ServicioVentas(db)
         self._build_widgets()
 
-    @staticmethod
-    def _add_labeled_entry(parent, text, row, column, width=26, default=""):
-        parent.columnconfigure(column + 1, weight=1)
-        ttk.Label(parent, text=text).grid(row=row, column=column, sticky="e", padx=(4, 8), pady=5)
-        entry = ttk.Entry(parent, width=width)
-        entry.grid(row=row, column=column + 1, sticky="ew", padx=(0, 10), pady=5)
-        if default:
-            entry.insert(0, default)
-        return entry
-
-
-    @staticmethod
-    def _make_tree(parent, columns, height=12):
-        container = ttk.Frame(parent)
-        container.pack(fill="both", expand=True)
-        tree = ttk.Treeview(container, columns=columns, show="headings", height=height)
-        yscroll = ttk.Scrollbar(container, orient="vertical", command=tree.yview)
-        xscroll = ttk.Scrollbar(container, orient="horizontal", command=tree.xview)
-        tree.configure(yscrollcommand=yscroll.set, xscrollcommand=xscroll.set)
-        tree.grid(row=0, column=0, sticky="nsew")
-        yscroll.grid(row=0, column=1, sticky="ns")
-        xscroll.grid(row=1, column=0, sticky="ew")
-        container.rowconfigure(0, weight=1)
-        container.columnconfigure(0, weight=1)
-        preferred_widths = {
-            "id": 58, "codigo": 110, "producto": 190, "producto_id": 85,
-            "categoria": 125, "talla": 75, "color": 100, "stock": 75,
-            "precio": 105, "proveedor": 145, "nombre": 175, "telefono": 120,
-            "correo": 190, "region": 135, "preferencias": 180, "direccion": 210,
-            "suministra": 190, "ultimo_pedido": 120, "usuario": 130, "rol": 125,
-            "descuento": 100, "inicio": 105, "fin": 105, "cantidad": 90,
-            "fecha": 145, "motivo": 210, "venta": 75, "metodo": 165,
-            "total": 110, "periodo": 130, "piezas": 90, "ventas": 110,
-            "empleado": 170, "costo": 110, "utilidad": 110, "tipo": 125,
-            "codigo": 120, "requerimiento": 420, "modulo": 170, "prueba": 300,
-            "elemento": 220, "valor": 260, "estado": 125, "resultado": 220,
-            "mensaje": 520,
-        }
-        for col in columns:
-            tree.heading(col, text=col)
-            width = preferred_widths.get(col, 130)
-            tree.column(col, width=width, minwidth=max(55, min(width, 90)), anchor="w", stretch=True)
-        return tree
-
-
     def _build_widgets(self):
-        form = ttk.LabelFrame(self, text="Nueva venta", padding=10)
+        form = ttk.LabelFrame(self.body, text="Nueva venta", padding=(0, 12))
         form.pack(fill="x")
-        self.sale_customer_id = self._add_labeled_entry(form, "ID cliente", 0, 0)
-        ttk.Label(
-            form, text=f"Empleado: {self.user['name']} (ID {self.user['id']})"
-        ).grid(row=0, column=2, columnspan=2, sticky="w")
-        ttk.Label(form, text="Metodo de pago").grid(row=1, column=0, sticky="e", padx=4, pady=3)
-        self.sale_payment = ttk.Combobox(form, values=PAYMENT_METHODS, state="readonly", width=24)
-        self.sale_payment.grid(row=1, column=1, sticky="w", padx=4, pady=3)
+        fields = FormGrid(form, columns=3, min_column_width=210)
+        fields.pack(fill="x")
+        self.sale_customer_id = fields.add_field("ID cliente")
+        self.sale_payment = fields.add_combo("Método de pago", PAYMENT_METHODS)
         self.sale_payment.set(PAYMENT_METHODS[0])
-        self.sale_discount = self._add_labeled_entry(form, "Descuento venta %", 1, 2, default="0")
-        self.sale_product_code = self._add_labeled_entry(form, "Codigo producto", 2, 0)
-        self.sale_quantity = self._add_labeled_entry(form, "Cantidad", 2, 2, default="1")
-        ttk.Button(form, text="Agregar al carrito", style="Accent.TButton", command=self.add_cart_item).grid(row=3, column=0, pady=8)
-        ttk.Button(form, text="Registrar venta", style="Accent.TButton", command=self.register_sale_ui).grid(row=3, column=1, pady=8)
-        ttk.Button(form, text="Vaciar carrito", style="Danger.TButton", command=self.clear_cart).grid(row=3, column=2, pady=8)
-        body = ttk.Frame(self)
-        body.pack(fill="both", expand=True, pady=8)
-        cart_frame = ttk.LabelFrame(body, text="Carrito", padding=5)
-        cart_frame.pack(side="left", fill="both", expand=True, padx=(0, 5))
-        self.cart_tree = self._make_tree(
-            cart_frame, ("id", "codigo", "producto", "cantidad", "precio", "promo", "subtotal"), height=14
-        )
-        ticket_frame = ttk.LabelFrame(body, text="Ticket", padding=5)
-        ticket_frame.pack(side="right", fill="both", expand=True, padx=(5, 0))
-        self.ticket_text = tk.Text(
-            ticket_frame, height=16, wrap="word", bg="#FFFFFF", fg="#1F2937",
-            insertbackground="#24456B", relief="solid", borderwidth=1,
-            highlightthickness=1, highlightbackground="#D6DEE8",
-            highlightcolor="#2A9D8F", padx=12, pady=10, font=("Segoe UI", 10),
-        )
-        self.ticket_text.pack(fill="both", expand=True)
+        self.sale_discount = fields.add_field("Descuento de venta (%)", default="0")
+        self.sale_product_code = fields.add_field("Código del producto")
+        self.sale_quantity = fields.add_field("Cantidad", default="1")
+        ttk.Label(form, text=f"Empleado: {self.user['name']} · ID {self.user['id']}",
+                  style="Muted.TLabel").pack(anchor="w", pady=(0, 12))
+        actions = ActionBar(form)
+        actions.pack(fill="x")
+        actions.add("Agregar al carrito", self.add_cart_item)
+        actions.add("Registrar venta", self.register_sale_ui, "Accent.TButton")
+        actions.add("Vaciar carrito", self.clear_cart, "Danger.TButton")
+        summary = ttk.Frame(self.body)
+        summary.pack(fill="both", expand=True, pady=(12, 0))
+        summary.columnconfigure(0, weight=3, uniform="summary")
+        summary.columnconfigure(1, weight=2, uniform="summary")
+        summary.rowconfigure(0, weight=1)
+        cart_frame = ttk.LabelFrame(summary, text="Carrito", padding=(0, 12, 0, 0))
+        cart_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 18))
+        self.cart_tree = make_tree(cart_frame, ("id", "codigo", "producto", "cantidad", "precio", "promo", "subtotal"), height=7)
+        ticket_frame = ttk.LabelFrame(summary, text="Resumen y ticket", padding=(0, 12, 0, 0))
+        ticket_frame.grid(row=0, column=1, sticky="nsew")
+        ticket_frame.columnconfigure(0, weight=1)
+        ticket_frame.rowconfigure(0, weight=1)
+        self.ticket_text = tk.Text(ticket_frame, height=8, width=1, wrap="word",
+                                   bg="#FFFFFF", fg="#223247", insertbackground="#147D73",
+                                   relief="flat", borderwidth=0, padx=16, pady=14, font=("Segoe UI", 10))
+        self.ticket_text.grid(row=0, column=0, sticky="nsew")
+        scroll = ttk.Scrollbar(ticket_frame, orient="vertical", command=self.ticket_text.yview)
+        scroll.grid(row=0, column=1, sticky="ns")
+        self.ticket_text.configure(yscrollcommand=scroll.set)
 
     def add_cart_item(self):
         try:

@@ -12,6 +12,8 @@ from datetime import date
 from tkinter import messagebox, ttk
 import tkinter as tk
 
+from mis_trapitos.ui.base import ActionBar, FormGrid, ScrollablePage, make_tree
+
 
 def today_text():
     return date.today().isoformat()
@@ -28,39 +30,14 @@ class ContactosUI(ttk.Frame):
     """Pestaña de contactos y usuarios con estado propio y actualización explícita."""
 
     def __init__(self, parent, db):
-        super().__init__(parent, padding=10)
+        super().__init__(parent, padding=0)
         self.db = db
         self.selected_customer_id = None
         self.selected_supplier_id = None
         self.selected_employee_id = None
         self._build_widgets()
 
-    @staticmethod
-    def _add_labeled_entry(parent, text, row, column, width=26, default=""):
-        ttk.Label(parent, text=text).grid(row=row, column=column, sticky="e", padx=4, pady=3)
-        entry = ttk.Entry(parent, width=width)
-        entry.grid(row=row, column=column + 1, sticky="w", padx=4, pady=3)
-        if default:
-            entry.insert(0, default)
-        return entry
-
-    @staticmethod
-    def _make_tree(parent, columns, height=12):
-        container = ttk.Frame(parent)
-        container.pack(fill="both", expand=True)
-        tree = ttk.Treeview(container, columns=columns, show="headings", height=height)
-        yscroll = ttk.Scrollbar(container, orient="vertical", command=tree.yview)
-        xscroll = ttk.Scrollbar(container, orient="horizontal", command=tree.xview)
-        tree.configure(yscrollcommand=yscroll.set, xscrollcommand=xscroll.set)
-        tree.grid(row=0, column=0, sticky="nsew")
-        yscroll.grid(row=0, column=1, sticky="ns")
-        xscroll.grid(row=1, column=0, sticky="ew")
-        container.rowconfigure(0, weight=1)
-        container.columnconfigure(0, weight=1)
-        for col in columns:
-            tree.heading(col, text=col)
-            tree.column(col, width=130, anchor="w")
-        return tree
+    _make_tree = staticmethod(make_tree)
 
     @staticmethod
     def _tree_clear(tree):
@@ -74,7 +51,8 @@ class ContactosUI(ttk.Frame):
             entry.insert(0, "" if value is None else str(value))
 
     def _build_widgets(self):
-        nb = ttk.Notebook(self)
+        self.notebook = ttk.Notebook(self)
+        nb = self.notebook
         nb.pack(fill="both", expand=True)
         self._build_customers_tab(nb)
         self._build_suppliers_tab(nb)
@@ -83,32 +61,28 @@ class ContactosUI(ttk.Frame):
     # ---------------------------- Clientes ----------------------------
 
     def _build_customers_tab(self, nb):
-        tab = ttk.Frame(nb, padding=10)
+        tab = ScrollablePage(nb, padding=0)
         nb.add(tab, text="Clientes")
-        form = ttk.LabelFrame(tab, text="Cliente", padding=10)
+        form = ttk.LabelFrame(tab.body, text="Datos del cliente", padding=(0, 10))
         form.pack(fill="x")
-        self.c_name = self._add_labeled_entry(form, "Nombre", 0, 0)
-        self.c_phone = self._add_labeled_entry(form, "Telefono", 0, 2)
-        self.c_email = self._add_labeled_entry(form, "Correo", 1, 0)
-        self.c_address = self._add_labeled_entry(form, "Direccion", 1, 2)
-        self.c_region = self._add_labeled_entry(form, "Ciudad/region", 2, 0)
-        self.c_preferences = self._add_labeled_entry(form, "Preferencias", 2, 2)
-        ttk.Button(form, text="Guardar cliente", command=self.save_customer_ui).grid(
-            row=3, column=0, pady=8
-        )
-        ttk.Button(form, text="Limpiar", command=self.clear_customer_form).grid(
-            row=3, column=1, pady=8
-        )
-        ttk.Button(form, text="Ver historial", command=self.show_customer_history).grid(
-            row=3, column=2, pady=8
-        )
-        ttk.Button(form, text="Correo profesional", command=self.show_customer_email).grid(
-            row=3, column=3, pady=8
-        )
-        table = ttk.LabelFrame(tab, text="Clientes registrados", padding=5)
-        table.pack(fill="both", expand=True, pady=8)
+        fields = FormGrid(form, columns=2, min_column_width=220)
+        fields.pack(fill="x")
+        self.c_name = fields.add_field("Nombre")
+        self.c_phone = fields.add_field("Teléfono")
+        self.c_email = fields.add_field("Correo")
+        self.c_address = fields.add_field("Dirección")
+        self.c_region = fields.add_field("Ciudad / región")
+        self.c_preferences = fields.add_field("Preferencias")
+        actions = ActionBar(form)
+        actions.pack(fill="x", pady=(10, 0))
+        actions.add("Guardar cliente", self.save_customer_ui, style="Accent.TButton")
+        actions.add("Limpiar", self.clear_customer_form)
+        actions.add("Ver historial", self.show_customer_history)
+        actions.add("Correo profesional", self.show_customer_email)
+        table = ttk.LabelFrame(tab.body, text="Clientes registrados", padding=(0, 10))
+        table.pack(fill="both", expand=True, pady=(12, 0))
         self.customers_tree = self._make_tree(
-            table, ("id", "nombre", "telefono", "correo", "region", "preferencias"), height=16
+            table, ("id", "nombre", "telefono", "correo", "region", "preferencias"), height=6
         )
         self.customers_tree.bind("<<TreeviewSelect>>", self.load_customer_selected)
         self.refresh_customers()
@@ -164,8 +138,21 @@ class ContactosUI(ttk.Frame):
             rows = self.db.customer_history(self.selected_customer_id)
             win = tk.Toplevel(self)
             win.title("Historial de cliente")
-            text = tk.Text(win, width=105, height=28)
-            text.pack(fill="both", expand=True, padx=10, pady=10)
+            win.geometry("960x600")
+            win.minsize(560, 360)
+            frame = ttk.Frame(win, padding=18)
+            frame.pack(fill="both", expand=True)
+            frame.rowconfigure(0, weight=1)
+            frame.columnconfigure(0, weight=1)
+            text = tk.Text(
+                frame, width=1, height=1, wrap="word", bg="#FFFFFF", fg="#263445",
+                font=("Segoe UI", 10), relief="flat", borderwidth=0,
+                highlightthickness=0, padx=12, pady=12,
+            )
+            scrollbar = ttk.Scrollbar(frame, orient="vertical", command=text.yview)
+            text.configure(yscrollcommand=scrollbar.set)
+            text.grid(row=0, column=0, sticky="nsew")
+            scrollbar.grid(row=0, column=1, sticky="ns")
             if not rows:
                 text.insert(tk.END, "Sin compras registradas.")
             for row in rows:
@@ -242,22 +229,34 @@ class ContactosUI(ttk.Frame):
             win = tk.Toplevel(self)
             win.title("Correo profesional para cliente")
             win.geometry("820x560")
-            frame = ttk.Frame(win, padding=10)
+            win.minsize(560, 400)
+            frame = ttk.Frame(win, padding=18)
             frame.pack(fill="both", expand=True)
             ttk.Label(
                 frame, text=f"Para: {customer['email'] or 'Sin correo registrado'}",
-                font=("Arial", 10, "bold"),
-            ).pack(anchor="w", pady=(0, 5))
-            ttk.Label(frame, text="Asunto").pack(anchor="w")
+                font=("Segoe UI", 11, "bold"),
+            ).pack(anchor="w", pady=(0, 14))
+            ttk.Label(frame, text="Asunto").pack(anchor="w", pady=(0, 4))
             subject_entry = ttk.Entry(frame)
-            subject_entry.pack(fill="x", pady=(0, 8))
+            subject_entry.pack(fill="x", pady=(0, 12))
             subject_entry.insert(0, subject)
-            ttk.Label(frame, text="Mensaje").pack(anchor="w")
-            text = tk.Text(frame, height=22, wrap="word")
-            text.pack(fill="both", expand=True)
+            ttk.Label(frame, text="Mensaje").pack(anchor="w", pady=(0, 4))
+            message_frame = ttk.Frame(frame)
+            message_frame.pack(fill="both", expand=True)
+            message_frame.rowconfigure(0, weight=1)
+            message_frame.columnconfigure(0, weight=1)
+            text = tk.Text(
+                message_frame, width=1, height=12, wrap="word", bg="#FFFFFF", fg="#263445",
+                font=("Segoe UI", 10), relief="flat", borderwidth=0,
+                highlightthickness=0, padx=12, pady=12,
+            )
+            scrollbar = ttk.Scrollbar(message_frame, orient="vertical", command=text.yview)
+            text.configure(yscrollcommand=scrollbar.set)
+            text.grid(row=0, column=0, sticky="nsew")
+            scrollbar.grid(row=0, column=1, sticky="ns")
             text.insert(tk.END, body)
-            buttons = ttk.Frame(frame)
-            buttons.pack(fill="x", pady=8)
+            buttons = ActionBar(frame)
+            buttons.pack(fill="x", pady=(14, 0))
 
             def copy_email():
                 content = f"Asunto: {subject_entry.get().strip()}\n\n{text.get('1.0', tk.END).strip()}"
@@ -282,34 +281,34 @@ class ContactosUI(ttk.Frame):
                 except Exception as e:
                     messagebox.showerror("Correo", str(e), parent=win)
 
-            ttk.Button(buttons, text="Copiar correo", command=copy_email).pack(side="left", padx=4)
-            ttk.Button(buttons, text="Abrir en correo", command=open_email_client_safe).pack(side="left", padx=4)
-            ttk.Button(buttons, text="Cerrar", command=win.destroy).pack(side="right", padx=4)
+            buttons.add("Abrir en correo", open_email_client_safe, style="Accent.TButton")
+            buttons.add("Copiar correo", copy_email)
+            buttons.add("Cerrar", win.destroy)
         except Exception as e:
             messagebox.showerror("Correo", str(e), parent=self)
 
     # ---------------------------- Proveedores ----------------------------
 
     def _build_suppliers_tab(self, nb):
-        tab = ttk.Frame(nb, padding=10)
+        tab = ScrollablePage(nb, padding=0)
         nb.add(tab, text="Proveedores")
-        form = ttk.LabelFrame(tab, text="Proveedor", padding=10)
+        form = ttk.LabelFrame(tab.body, text="Datos del proveedor", padding=(0, 10))
         form.pack(fill="x")
-        self.s_name = self._add_labeled_entry(form, "Nombre", 0, 0)
-        self.s_phone = self._add_labeled_entry(form, "Telefono", 0, 2)
-        self.s_address = self._add_labeled_entry(form, "Direccion", 1, 0)
-        self.s_products = self._add_labeled_entry(form, "Productos suministrados", 1, 2)
-        self.s_last_order = self._add_labeled_entry(form, "Ultimo pedido", 2, 0, default=today_text())
-        ttk.Button(form, text="Guardar proveedor", command=self.save_supplier_ui).grid(
-            row=3, column=0, pady=8
-        )
-        ttk.Button(form, text="Limpiar", command=self.clear_supplier_form).grid(
-            row=3, column=1, pady=8
-        )
-        table = ttk.LabelFrame(tab, text="Proveedores registrados", padding=5)
-        table.pack(fill="both", expand=True, pady=8)
+        fields = FormGrid(form, columns=2, min_column_width=220)
+        fields.pack(fill="x")
+        self.s_name = fields.add_field("Nombre")
+        self.s_phone = fields.add_field("Teléfono")
+        self.s_address = fields.add_field("Dirección")
+        self.s_products = fields.add_field("Productos suministrados")
+        self.s_last_order = fields.add_field("Último pedido", default=today_text())
+        actions = ActionBar(form)
+        actions.pack(fill="x", pady=(10, 0))
+        actions.add("Guardar proveedor", self.save_supplier_ui, style="Accent.TButton")
+        actions.add("Limpiar", self.clear_supplier_form)
+        table = ttk.LabelFrame(tab.body, text="Proveedores registrados", padding=(0, 10))
+        table.pack(fill="both", expand=True, pady=(12, 0))
         self.suppliers_tree = self._make_tree(
-            table, ("id", "nombre", "telefono", "direccion", "suministra", "ultimo_pedido"), height=16
+            table, ("id", "nombre", "telefono", "direccion", "suministra", "ultimo_pedido"), height=6
         )
         self.suppliers_tree.bind("<<TreeviewSelect>>", self.load_supplier_selected)
         self.refresh_suppliers()
@@ -362,23 +361,23 @@ class ContactosUI(ttk.Frame):
     # ---------------------------- Empleados ----------------------------
 
     def _build_employees_tab(self, nb):
-        tab = ttk.Frame(nb, padding=10)
+        tab = ScrollablePage(nb, padding=0)
         nb.add(tab, text="Empleados")
-        form = ttk.LabelFrame(tab, text="Empleado", padding=10)
+        form = ttk.LabelFrame(tab.body, text="Datos del empleado", padding=(0, 10))
         form.pack(fill="x")
-        self.e_name = self._add_labeled_entry(form, "Nombre", 0, 0)
-        self.e_username = self._add_labeled_entry(form, "Usuario", 0, 2)
-        self.e_password = self._add_labeled_entry(form, "Contraseña", 1, 0)
-        self.e_role = self._add_labeled_entry(form, "Rol", 1, 2)
-        ttk.Button(form, text="Guardar empleado", command=self.save_employee_ui).grid(
-            row=2, column=0, pady=8
-        )
-        ttk.Button(form, text="Limpiar", command=self.clear_employee_form).grid(
-            row=2, column=1, pady=8
-        )
-        table = ttk.LabelFrame(tab, text="Empleados registrados", padding=5)
-        table.pack(fill="both", expand=True, pady=8)
-        self.employees_tree = self._make_tree(table, ("id", "nombre", "usuario", "rol"), height=16)
+        fields = FormGrid(form, columns=2, min_column_width=220)
+        fields.pack(fill="x")
+        self.e_name = fields.add_field("Nombre")
+        self.e_username = fields.add_field("Usuario")
+        self.e_password = fields.add_field("Contraseña")
+        self.e_role = fields.add_field("Rol")
+        actions = ActionBar(form)
+        actions.pack(fill="x", pady=(10, 0))
+        actions.add("Guardar empleado", self.save_employee_ui, style="Accent.TButton")
+        actions.add("Limpiar", self.clear_employee_form)
+        table = ttk.LabelFrame(tab.body, text="Empleados registrados", padding=(0, 10))
+        table.pack(fill="both", expand=True, pady=(12, 0))
+        self.employees_tree = self._make_tree(table, ("id", "nombre", "usuario", "rol"), height=6)
         self.employees_tree.bind("<<TreeviewSelect>>", self.load_employee_selected)
         self.refresh_employees()
 
