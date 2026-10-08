@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from mis_trapitos_app_v7 import App, Database, DB_NAME
-
+from mis_trapitos.ui.app import App
+from mis_trapitos.data.database import Database, DB_NAME
 
 def iniciar_sesion():
     nombre = entrada_usuario.get().strip()
