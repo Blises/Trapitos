@@ -113,7 +113,10 @@ class SessionTest(unittest.TestCase):
             self.login()
         self.assertEqual(self.app.user["username"], "admin")
         self.assertEqual(len(self.app.main_notebook.tabs()), 7)
-        for module in (self.app.productos_ui, self.app.contactos_ui, self.app.ventas_ui):
+        for module in (
+            self.app.productos_ui, self.app.contactos_ui, self.app.ventas_ui,
+            self.app.promociones_ui, self.app.devoluciones_ui,
+        ):
             self.assertIs(module.db, self.db)
             self.assertIs(module.winfo_toplevel(), self.app)
         self.assertEqual(self.app.ventas_ui.user["id"], self.app.user["id"])
@@ -128,19 +131,27 @@ class SessionTest(unittest.TestCase):
         self.app.ventas_ui.servicio.agregar_producto("PRUEBA-M", 2)
         old_products = self.app.productos_ui
         old_sales = self.app.ventas_ui
+        old_promotions = self.app.promociones_ui
+        old_returns = self.app.devoluciones_ui
         self.app.show_login()
         self.assertIsNone(self.app.user)
         self.assertIsNone(self.app.productos_ui)
         self.assertIsNone(self.app.contactos_ui)
         self.assertIsNone(self.app.ventas_ui)
+        self.assertIsNone(self.app.promociones_ui)
+        self.assertIsNone(self.app.devoluciones_ui)
         self.assertFalse(old_products.winfo_exists())
         self.assertFalse(old_sales.winfo_exists())
+        self.assertFalse(old_promotions.winfo_exists())
+        self.assertFalse(old_returns.winfo_exists())
         with patch.object(application, "Database", side_effect=AssertionError("Conexion adicional")):
             self.login("ventas", "5678")
         self.assertEqual(self.app.user["username"], "ventas")
         self.assertEqual(self.app.ventas_ui.user["username"], "ventas")
         self.assertIsNot(self.app.productos_ui, old_products)
         self.assertIsNot(self.app.ventas_ui, old_sales)
+        self.assertIsNot(self.app.promociones_ui, old_promotions)
+        self.assertIsNot(self.app.devoluciones_ui, old_returns)
         self.assertEqual(self.app.ventas_ui.servicio.cart, [])
         self.assertIsNone(self.app.productos_ui.selected_product_id)
         self.assertIs(self.app.db, self.db)

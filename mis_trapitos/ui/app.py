@@ -2,10 +2,13 @@ import csv
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from mis_trapitos.data.database import Database, DB_NAME, PAYMENT_METHODS, today_text, date_offset
+from mis_trapitos.data.database import Database, DB_NAME, PAYMENT_METHODS
+from mis_trapitos.ui.base import add_labeled_entry, make_tree
 from mis_trapitos.ui.contactos import ContactosUI
+from mis_trapitos.ui.devoluciones import DevolucionesUI
 from mis_trapitos.ui.login import Login
 from mis_trapitos.ui.productos import ProductosUI
+from mis_trapitos.ui.promociones import PromocionesUI
 from mis_trapitos.ui.ventas import VentasUI, ServicioVentas
 
 APP_TITLE = "Mis trapitos - Sistema local"
@@ -118,7 +121,8 @@ class App(tk.Tk):
         self.main_notebook = None
         self.navigation_buttons = []
         self.module_title = tk.StringVar(self, value="Productos")
-        self.selected_promotion_id = None
+        self.promociones_ui = None
+        self.devoluciones_ui = None
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.show_login()
 
@@ -473,8 +477,12 @@ class App(tk.Tk):
         nb.add(self.ventas_ui, text="Ventas")
         self.contactos_ui = ContactosUI(nb, self.db)
         nb.add(self.contactos_ui, text="Contactos y usuarios")
-        self.make_promotions_tab(nb)
-        self.make_returns_tab(nb)
+        self.promociones_ui = PromocionesUI(nb, self.db)
+        nb.add(self.promociones_ui, text="Promociones")
+        self.devoluciones_ui = DevolucionesUI(
+            nb, self.db, on_inventario_actualizado=self.refresh_products
+        )
+        nb.add(self.devoluciones_ui, text="Devoluciones y cancelaciones")
         self.make_reports_tab(nb)
         self.make_traceability_tab(nb)
         nb.bind("<<NotebookTabChanged>>", self._on_module_changed)
@@ -513,57 +521,8 @@ class App(tk.Tk):
         self.navigation_buttons = []
         self.login_view = None
         self.ventas_ui = None
-        self.selected_promotion_id = None
-
-    def add_labeled_entry(self, parent, text, row, column, width=26, default=""):
-        parent.columnconfigure(column + 1, weight=1)
-        ttk.Label(parent, text=text).grid(row=row, column=column, sticky="e", padx=(4, 8), pady=5)
-        entry = ttk.Entry(parent, width=width)
-        entry.grid(row=row, column=column + 1, sticky="ew", padx=(0, 10), pady=5)
-        if default:
-            entry.insert(0, default)
-        return entry
-
-    def make_tree(self, parent, columns, height=12):
-        container = ttk.Frame(parent)
-        container.pack(fill="both", expand=True)
-        tree = ttk.Treeview(container, columns=columns, show="headings", height=height)
-        yscroll = ttk.Scrollbar(container, orient="vertical", command=tree.yview)
-        xscroll = ttk.Scrollbar(container, orient="horizontal", command=tree.xview)
-        tree.configure(yscrollcommand=yscroll.set, xscrollcommand=xscroll.set)
-        tree.grid(row=0, column=0, sticky="nsew")
-        yscroll.grid(row=0, column=1, sticky="ns")
-        xscroll.grid(row=1, column=0, sticky="ew")
-        container.rowconfigure(0, weight=1)
-        container.columnconfigure(0, weight=1)
-        preferred_widths = {
-            "id": 58, "codigo": 110, "producto": 190, "producto_id": 85,
-            "categoria": 125, "talla": 75, "color": 100, "stock": 75,
-            "precio": 105, "proveedor": 145, "nombre": 175, "telefono": 120,
-            "correo": 190, "region": 135, "preferencias": 180, "direccion": 210,
-            "suministra": 190, "ultimo_pedido": 120, "usuario": 130, "rol": 125,
-            "descuento": 100, "inicio": 105, "fin": 105, "cantidad": 90,
-            "fecha": 145, "motivo": 210, "venta": 75, "metodo": 165,
-            "total": 110, "periodo": 130, "piezas": 90, "ventas": 110,
-            "empleado": 170, "costo": 110, "utilidad": 110, "tipo": 125,
-            "codigo": 120, "requerimiento": 420, "modulo": 170, "prueba": 300,
-            "elemento": 220, "valor": 260, "estado": 125, "resultado": 220,
-            "mensaje": 520,
-        }
-        for col in columns:
-            tree.heading(col, text=col)
-            width = preferred_widths.get(col, 130)
-            tree.column(col, width=width, minwidth=max(55, min(width, 90)), anchor="w", stretch=True)
-        return tree
-
-    def tree_clear(self, tree):
-        for item in tree.get_children():
-            tree.delete(item)
-
-    def set_entries(self, entries, values):
-        for entry, value in zip(entries, values):
-            entry.delete(0, tk.END)
-            entry.insert(0, "" if value is None else str(value))
+        self.promociones_ui = None
+        self.devoluciones_ui = None
 
     def make_products_tab(self, nb):
         self.productos_ui = ProductosUI(nb, self.db)
@@ -574,116 +533,6 @@ class App(tk.Tk):
         if self.productos_ui is not None:
             self.productos_ui.actualizar_inventario()
 
-    def make_promotions_tab(self, nb):
-        tab = ttk.Frame(nb, padding=10)
-        nb.add(tab, text="Promociones")
-        form = ttk.LabelFrame(tab, text="Promocion", padding=10)
-        form.pack(fill="x")
-        self.pr_product = self.add_labeled_entry(form, "ID producto", 0, 0)
-        self.pr_discount = self.add_labeled_entry(form, "Descuento %", 0, 2)
-        self.pr_start = self.add_labeled_entry(form, "Inicio", 1, 0, default=today_text())
-        self.pr_end = self.add_labeled_entry(form, "Fin", 1, 2, default=date_offset(30))
-        ttk.Button(form, text="Guardar promocion", command=self.save_promotion_ui).grid(row=2, column=0, pady=8)
-        ttk.Button(form, text="Limpiar", command=self.clear_promotion_form).grid(row=2, column=1, pady=8)
-        table = ttk.LabelFrame(tab, text="Promociones registradas", padding=5)
-        table.pack(fill="both", expand=True, pady=8)
-        self.promotions_tree = self.make_tree(table, ("id", "producto_id", "codigo", "producto", "descuento", "inicio", "fin"), height=16)
-        self.promotions_tree.bind("<<TreeviewSelect>>", self.load_promotion_selected)
-        self.refresh_promotions()
-
-    def save_promotion_ui(self):
-        try:
-            product_id = int(self.pr_product.get())
-            discount = float(self.pr_discount.get() or 0)
-            if discount < 0 or discount > 100:
-                raise ValueError("Descuento no valido.")
-            if not self.db.one("SELECT id FROM products WHERE id=?", (product_id,)):
-                raise ValueError("Producto no encontrado.")
-            self.selected_promotion_id = self.db.save_promotion(self.selected_promotion_id, product_id, discount, self.pr_start.get().strip() or today_text(), self.pr_end.get().strip() or today_text())
-            self.refresh_promotions()
-            messagebox.showinfo("Promociones", "Promocion guardada.")
-        except Exception as e:
-            messagebox.showerror("Promociones", str(e))
-
-    def refresh_promotions(self):
-        rows = self.db.query("""SELECT pr.id, pr.product_id AS producto_id, p.code AS codigo, p.name
-AS producto, pr.discount_percent AS descuento, pr.start_date AS inicio, pr.end_date AS fin FROM
-promotions pr JOIN products p ON p.id=pr.product_id ORDER BY pr.id DESC""")
-        self.tree_clear(self.promotions_tree)
-        for row in rows:
-            self.promotions_tree.insert("", tk.END, values=[row[key] for key in row.keys()])
-
-    def load_promotion_selected(self, event=None):
-        sel = self.promotions_tree.selection()
-        if not sel:
-            return
-        promotion_id = self.promotions_tree.item(sel[0], "values")[0]
-        row = self.db.one("SELECT * FROM promotions WHERE id=?", (promotion_id,))
-        if not row:
-            return
-        self.selected_promotion_id = row["id"]
-        self.set_entries([self.pr_product, self.pr_discount, self.pr_start, self.pr_end], [row["product_id"], row["discount_percent"], row["start_date"], row["end_date"]])
-
-    def clear_promotion_form(self):
-        self.selected_promotion_id = None
-        for entry in [self.pr_product, self.pr_discount, self.pr_start, self.pr_end]:
-            entry.delete(0, tk.END)
-        self.pr_start.insert(0, today_text())
-        self.pr_end.insert(0, date_offset(30))
-
-    def make_returns_tab(self, nb):
-        tab = ttk.Frame(nb, padding=10)
-        nb.add(tab, text="Devoluciones y cancelaciones")
-        form = ttk.LabelFrame(tab, text="Registro", padding=10)
-        form.pack(fill="x")
-        self.r_sale = self.add_labeled_entry(form, "Venta para devolucion", 0, 0)
-        self.r_product = self.add_labeled_entry(form, "ID producto", 0, 2)
-        self.r_quantity = self.add_labeled_entry(form, "Cantidad", 1, 0, default="1")
-        self.r_reason = self.add_labeled_entry(form, "Motivo devolucion", 1, 2)
-        ttk.Button(form, text="Registrar devolucion", command=self.return_item_ui).grid(row=2, column=0, pady=8)
-        self.cancel_sale_entry = self.add_labeled_entry(form, "Venta a cancelar", 3, 0)
-        self.cancel_reason = self.add_labeled_entry(form, "Motivo cancelacion", 3, 2)
-        ttk.Button(form, text="Cancelar venta", command=self.cancel_sale_ui).grid(row=4, column=0, pady=8)
-        body = ttk.Frame(tab)
-        body.pack(fill="both", expand=True, pady=8)
-        returns_frame = ttk.LabelFrame(body, text="Devoluciones", padding=5)
-        returns_frame.pack(side="left", fill="both", expand=True, padx=(0, 5))
-        self.returns_tree = self.make_tree(returns_frame, ("id", "venta", "producto", "cantidad", "fecha", "motivo"), height=14)
-        cancellations_frame = ttk.LabelFrame(body, text="Cancelaciones", padding=5)
-        cancellations_frame.pack(side="right", fill="both", expand=True, padx=(5, 0))
-        self.cancellations_tree = self.make_tree(cancellations_frame, ("id", "venta", "fecha", "motivo"), height=14)
-        self.refresh_returns()
-
-    def return_item_ui(self):
-        try:
-            self.db.return_item(int(self.r_sale.get()), int(self.r_product.get()), int(self.r_quantity.get()), self.r_reason.get().strip())
-            self.refresh_returns()
-            self.refresh_products()
-            messagebox.showinfo("Devolucion", "Devolucion registrada.")
-        except Exception as e:
-            messagebox.showerror("Devolucion", str(e))
-
-    def cancel_sale_ui(self):
-        try:
-            self.db.cancel_sale(int(self.cancel_sale_entry.get()), self.cancel_reason.get().strip())
-            self.refresh_returns()
-            self.refresh_products()
-            messagebox.showinfo("Cancelacion", "Venta cancelada.")
-        except Exception as e:
-            messagebox.showerror("Cancelacion", str(e))
-
-    def refresh_returns(self):
-        rows = self.db.query("""SELECT r.id, r.sale_id AS venta, p.name AS producto, r.quantity AS
-cantidad, r.return_datetime AS fecha, r.reason AS motivo FROM returns r JOIN products p ON
-p.id=r.product_id ORDER BY r.id DESC""")
-        self.tree_clear(self.returns_tree)
-        for row in rows:
-            self.returns_tree.insert("", tk.END, values=[row[key] for key in row.keys()])
-        rows = self.db.query("SELECT id, sale_id AS venta, cancel_datetime AS fecha, reason AS motivo FROM cancellations ORDER BY id DESC")
-        self.tree_clear(self.cancellations_tree)
-        for row in rows:
-            self.cancellations_tree.insert("", tk.END, values=[row[key] for key in row.keys()])
-
     def make_reports_tab(self, nb):
         tab = ttk.Frame(nb, padding=10)
         nb.add(tab, text="Reportes")
@@ -693,14 +542,14 @@ p.id=r.product_id ORDER BY r.id DESC""")
         self.report_combo = ttk.Combobox(controls, values=REPORTS, state="readonly", width=48)
         self.report_combo.grid(row=0, column=1, padx=4, pady=4, sticky="w")
         self.report_combo.set(REPORTS[0])
-        self.report_param = self.add_labeled_entry(controls, "Parametro", 0, 2, width=30)
+        self.report_param = add_labeled_entry(controls, "Parametro", 0, 2, width=30)
         ttk.Button(controls, text="Ejecutar", command=self.run_report).grid(row=0, column=4, padx=4, pady=4)
         ttk.Button(controls, text="Exportar CSV", command=self.export_report_csv).grid(row=0, column=5, padx=4, pady=4)
         self.report_hint = ttk.Label(controls, text="Parametro se usa en reportes por categoria, proveedor, cliente, precio o stock bajo.")
         self.report_hint.grid(row=1, column=0, columnspan=6, sticky="w", padx=4)
         table = ttk.LabelFrame(tab, text="Resultado", padding=5)
         table.pack(fill="both", expand=True, pady=8)
-        self.report_tree = self.make_tree(table, ("resultado",), height=18)
+        self.report_tree = make_tree(table, ("resultado",), height=18)
         self.last_report_rows = []
         self.run_report()
 
@@ -744,12 +593,12 @@ p.id=r.product_id ORDER BY r.id DESC""")
         nb.add(tab, text="Rastreabilidad")
         upper = ttk.LabelFrame(tab, text="Administracion de configuracion", padding=5)
         upper.pack(fill="x")
-        config_tree = self.make_tree(upper, ("id", "elemento", "valor", "estado"), height=5)
+        config_tree = make_tree(upper, ("id", "elemento", "valor", "estado"), height=5)
         for item in CONFIG_ITEMS:
             config_tree.insert("", tk.END, values=item)
         lower = ttk.LabelFrame(tab, text="Matriz de rastreabilidad", padding=5)
         lower.pack(fill="both", expand=True, pady=8)
-        trace_tree = self.make_tree(lower, ("id", "requerimiento", "modulo", "prueba"), height=18)
+        trace_tree = make_tree(lower, ("id", "requerimiento", "modulo", "prueba"), height=18)
         for item in TRACEABILITY:
             trace_tree.insert("", tk.END, values=item)
         ttk.Button(tab, text="Ejecutar pruebas basicas", command=self.run_basic_tests).pack(anchor="w", pady=5)
