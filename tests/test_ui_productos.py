@@ -14,8 +14,9 @@ from unittest.mock import patch
 
 from PIL import Image
 
-import mis_trapitos_app_v7 as application
-import ui_productos
+from mis_trapitos.data.database import Database
+from mis_trapitos.ui import app as application
+from mis_trapitos.ui import productos as ui_productos
 
 
 def set_entry(entry, value):
@@ -67,7 +68,7 @@ class TemporaryInventoryTest(unittest.TestCase):
         directory = tempfile.TemporaryDirectory(prefix="trapitos-tests-")
         self.addCleanup(directory.cleanup)
         self.directory = Path(directory.name)
-        self.start_patch(patch.object(application.Database, "seed_examples"))
+        self.start_patch(patch.object(Database, "seed_examples"))
         self.info = self.start_patch(patch.object(messagebox, "showinfo"))
         self.error = self.start_patch(patch.object(messagebox, "showerror"))
         self.warning = self.start_patch(patch.object(messagebox, "showwarning"))
@@ -81,7 +82,7 @@ class TemporaryInventoryTest(unittest.TestCase):
 class ProductosUITest(TemporaryInventoryTest):
     def setUp(self):
         super().setUp()
-        self.db = application.Database(str(self.directory / "inventario.db"))
+        self.db = Database(str(self.directory / "inventario.db"))
         self.addCleanup(self.db.close)
         self.root = tk.Tk()
         self.root.withdraw()
@@ -246,14 +247,15 @@ class ProductosUITest(TemporaryInventoryTest):
 class ProductosAppIntegrationTest(TemporaryInventoryTest):
     def setUp(self):
         super().setUp()
-        self.start_patch(patch.object(application, "DB_NAME", str(self.directory / "app.db")))
-        self.app = application.App()
+        self.app = application.App(db_path=str(self.directory / "app.db"))
         self.app.withdraw()
         self.addCleanup(self.app.on_close)
         self.db = self.app.db
         employee_id = self.db.save_employee(None, "Prueba", "prueba", "prueba", "Administrador")
-        self.app.user = self.db.one("SELECT * FROM employees WHERE id=?", (employee_id,))
-        self.app.show_main()
+        set_entry(self.app.login_view.username_entry, "prueba")
+        set_entry(self.app.login_view.password_entry, "prueba")
+        self.app.login_view.submit()
+        self.assertEqual(self.app.user["id"], employee_id)
         self.ui = self.app.productos_ui
 
     def assert_stock(self, code, expected):
@@ -270,16 +272,16 @@ class ProductosAppIntegrationTest(TemporaryInventoryTest):
         self.app.update()
         set_entry(self.ui.p_name, "Blusa de algodon")
 
-        set_entry(self.app.sale_product_code, "BLUSA-M-AZUL")
-        set_entry(self.app.sale_quantity, 3)
-        self.app.add_cart_item()
-        self.app.register_sale_ui()
+        set_entry(self.app.ventas_ui.sale_product_code, "BLUSA-M-AZUL")
+        set_entry(self.app.ventas_ui.sale_quantity, 3)
+        self.app.ventas_ui.add_cart_item()
+        self.app.ventas_ui.register_sale_ui()
         self.error.assert_not_called()
         sale_id = self.db.scalar("SELECT MAX(id) FROM sales")
         self.assertIsNotNone(sale_id)
         self.assert_stock("BLUSA-M-AZUL", 7)
         self.assert_stock("BLUSA-L-ROJA", 6)
-        self.assertEqual(self.app.cart, [])
+        self.assertEqual(self.app.ventas_ui.servicio.cart, [])
         self.app.update()
         self.assertEqual(self.ui.p_stock.get(), "7")
         self.assertEqual(self.ui.p_name.get(), "Blusa de algodon")
@@ -288,33 +290,36 @@ class ProductosAppIntegrationTest(TemporaryInventoryTest):
         self.assertEqual(self.db.scalar("SELECT name FROM products WHERE id=?", (product_id,)),
                          "Blusa de algodon")
 
-        set_entry(self.app.r_sale, sale_id)
-        set_entry(self.app.r_product, product_id)
-        set_entry(self.app.r_quantity, 1)
-        set_entry(self.app.r_reason, "Cambio de talla")
-        self.app.return_item_ui()
+        set_entry(self.app.devoluciones_ui.r_sale, sale_id)
+        set_entry(self.app.devoluciones_ui.r_product, product_id)
+        set_entry(self.app.devoluciones_ui.r_quantity, 1)
+        set_entry(self.app.devoluciones_ui.r_reason, "Cambio de talla")
+        self.app.devoluciones_ui.return_item_ui()
         self.error.assert_not_called()
         self.assert_stock("BLUSA-M-AZUL", 8)
         self.assert_stock("BLUSA-L-ROJA", 6)
         self.assertEqual(self.ui.p_stock.get(), "8")
-        self.assertEqual(len(self.app.returns_tree.get_children()), 1)
+        self.assertEqual(len(self.app.devoluciones_ui.returns_tree.get_children()), 1)
 
-        set_entry(self.app.cancel_sale_entry, sale_id)
-        set_entry(self.app.cancel_reason, "Cancelacion de prueba")
-        self.app.cancel_sale_ui()
+        set_entry(self.app.devoluciones_ui.cancel_sale_entry, sale_id)
+        set_entry(self.app.devoluciones_ui.cancel_reason, "Cancelacion de prueba")
+        self.app.devoluciones_ui.cancel_sale_ui()
         self.error.assert_not_called()
         self.assert_stock("BLUSA-M-AZUL", 10)
         self.assert_stock("BLUSA-L-ROJA", 6)
         self.assertEqual(self.ui.p_stock.get(), "10")
         self.assertEqual(self.db.scalar("SELECT status FROM sales WHERE id=?", (sale_id,)), "CANCELADA")
-        self.assertEqual(len(self.app.cancellations_tree.get_children()), 1)
+        self.assertEqual(len(self.app.devoluciones_ui.cancellations_tree.get_children()), 1)
 
     def test_reabrir_sesion_recrea_modulo_y_conserva_inventario(self):
         fill_product(self.ui)
         self.ui.add_product_ui()
         old_ui = self.ui
         self.app.show_login()
-        self.app.show_main()
+        self.assertIsNone(self.app.user)
+        set_entry(self.app.login_view.username_entry, "prueba")
+        set_entry(self.app.login_view.password_entry, "prueba")
+        self.app.login_view.submit()
         self.ui = self.app.productos_ui
         self.assertIsNot(self.ui, old_ui)
         self.assertIsNone(self.ui.selected_product_id)

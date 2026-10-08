@@ -12,15 +12,17 @@ from tkinter import filedialog, messagebox, ttk
 
 from PIL import Image, ImageOps, ImageTk
 
+from mis_trapitos.ui.base import ActionBar, FormGrid, ScrollablePage, make_tree
+
 
 IMAGE_DIR = "mis_trapitos_imagenes"
 
 
-class ProductosUI(ttk.Frame):
+class ProductosUI(ScrollablePage):
     """Pestaña de productos con estado propio y actualización explícita."""
 
     def __init__(self, parent, db):
-        super().__init__(parent, padding=10)
+        super().__init__(parent)
         self.db = db
         self.selected_product_id = None
         self.product_photo_ref = None
@@ -29,87 +31,55 @@ class ProductosUI(ttk.Frame):
         self.actualizar_inventario()
 
     def _build_widgets(self):
-        left = ttk.Frame(self)
-        left.pack(side="left", fill="both", expand=True)
-        right = ttk.LabelFrame(self, text="Foto del producto", padding=10)
-        right.pack(side="right", fill="y", padx=(10, 0))
-        form = ttk.LabelFrame(left, text="Producto", padding=10)
-        form.pack(fill="x")
-        self.p_code = self._add_labeled_entry(form, "Codigo", 0, 0)
-        self.p_name = self._add_labeled_entry(form, "Nombre", 0, 2)
-        self.p_category = self._add_labeled_entry(form, "Categoria", 1, 0)
-        self.p_size = self._add_labeled_entry(form, "Talla", 1, 2)
-        self.p_color = self._add_labeled_entry(form, "Color", 2, 0)
-        self.p_purchase = self._add_labeled_entry(form, "Precio compra", 2, 2)
-        self.p_sale = self._add_labeled_entry(form, "Precio venta", 3, 0)
-        self.p_stock = self._add_labeled_entry(form, "Stock", 3, 2)
-        self.p_supplier = self._add_labeled_entry(form, "ID proveedor", 4, 0)
-        self.p_entry = self._add_labeled_entry(
-            form, "Fecha ingreso", 4, 2, default=date.today().isoformat()
-        )
-        self.p_brand = self._add_labeled_entry(form, "Marca", 5, 0)
-        self.p_season = self._add_labeled_entry(form, "Temporada", 5, 2)
-        self.p_image = self._add_labeled_entry(form, "Foto", 6, 0, width=58)
-        ttk.Button(form, text="Seleccionar foto", command=self.choose_product_image).grid(
-            row=6, column=2, pady=4
-        )
-        ttk.Button(form, text="Agregar producto", command=self.add_product_ui).grid(
-            row=7, column=0, pady=8
-        )
-        ttk.Button(form, text="Editar producto", command=self.edit_product_ui).grid(
-            row=7, column=1, pady=8
-        )
-        ttk.Button(form, text="Limpiar", command=self.clear_product_form).grid(
-            row=7, column=2, pady=8
-        )
-        ttk.Button(form, text="Ver foto", command=self.show_selected_product_image).grid(
-            row=7, column=3, pady=8
-        )
-        ttk.Button(form, text="Exportar inventario", command=self.export_inventory_csv).grid(
-            row=8, column=0, pady=8
-        )
+        editor = ttk.Frame(self.body)
+        editor.pack(fill="x")
+        editor.columnconfigure(0, weight=1)
+        form = ttk.LabelFrame(editor, text="Datos del producto", padding=(0, 12))
+        form.grid(row=0, column=0, sticky="nsew")
+        fields = FormGrid(form, columns=4, min_column_width=160)
+        fields.pack(fill="x")
+        self.p_code = fields.add_field("Código")
+        self.p_name = fields.add_field("Nombre")
+        self.p_category = fields.add_field("Categoría")
+        self.p_size = fields.add_field("Talla")
+        self.p_color = fields.add_field("Color")
+        self.p_purchase = fields.add_field("Precio de compra")
+        self.p_sale = fields.add_field("Precio de venta")
+        self.p_stock = fields.add_field("Existencias")
+        self.p_supplier = fields.add_field("ID proveedor")
+        self.p_entry = fields.add_field("Fecha de ingreso", default=date.today().isoformat())
+        self.p_brand = fields.add_field("Marca")
+        self.p_season = fields.add_field("Temporada")
+        photo_fields = FormGrid(form, columns=1)
+        photo_fields.pack(fill="x")
+        self.p_image = photo_fields.add_field("Archivo de imagen")
+        preview = ttk.LabelFrame(editor, text="Vista previa", padding=(0, 12))
+        preview.grid(row=0, column=1, sticky="n", padx=(20, 0))
+        holder = ttk.Frame(preview, width=160, height=160, style="Surface.TFrame")
+        holder.pack()
+        holder.pack_propagate(False)
         self.product_image_label = tk.Label(
-            right, text="Selecciona un producto", anchor="center", width=34,
-            height=16, relief="groove", bg="white"
+            holder, text="Sin imagen", wraplength=140, anchor="center",
+            bg="#FFFFFF", fg="#53677E", font=("Segoe UI", 9), borderwidth=0,
         )
-        self.product_image_label.pack(padx=10, pady=10)
-        self.product_image_text = ttk.Label(right, text="", wraplength=240, justify="center")
-        self.product_image_text.pack(padx=10, pady=5)
-        table = ttk.LabelFrame(left, text="Inventario", padding=5)
-        table.pack(fill="both", expand=True, pady=8)
-        self.products_tree = self._make_tree(
-            table,
-            ("id", "codigo", "producto", "categoria", "talla", "color", "stock", "precio", "proveedor"),
-            height=15,
+        self.product_image_label.pack(fill="both", expand=True)
+        self.product_image_text = ttk.Label(preview, text="Selecciona un producto", wraplength=160,
+                                            justify="left", style="Muted.TLabel")
+        self.product_image_text.pack(fill="x", pady=(8, 8))
+        ttk.Button(preview, text="Seleccionar foto", command=self.choose_product_image).pack(fill="x", pady=(0, 6))
+        ttk.Button(preview, text="Ver foto", command=self.show_selected_product_image).pack(fill="x")
+        actions = ActionBar(self.body)
+        actions.pack(fill="x", pady=(0, 20))
+        actions.add("Agregar producto", self.add_product_ui, "Accent.TButton")
+        actions.add("Editar producto", self.edit_product_ui)
+        actions.add("Limpiar", self.clear_product_form)
+        actions.add("Exportar inventario", self.export_inventory_csv)
+        table = ttk.LabelFrame(self.body, text="Inventario", padding=(0, 12, 0, 0))
+        table.pack(fill="both", expand=True)
+        self.products_tree = make_tree(
+            table, ("id", "codigo", "producto", "categoria", "talla", "color", "stock", "precio", "proveedor"), height=5
         )
         self.products_tree.bind("<<TreeviewSelect>>", self.load_product_selected)
-
-    @staticmethod
-    def _add_labeled_entry(parent, text, row, column, width=26, default=""):
-        ttk.Label(parent, text=text).grid(row=row, column=column, sticky="e", padx=4, pady=3)
-        entry = ttk.Entry(parent, width=width)
-        entry.grid(row=row, column=column + 1, sticky="w", padx=4, pady=3)
-        if default:
-            entry.insert(0, default)
-        return entry
-
-    @staticmethod
-    def _make_tree(parent, columns, height=12):
-        container = ttk.Frame(parent)
-        container.pack(fill="both", expand=True)
-        tree = ttk.Treeview(container, columns=columns, show="headings", height=height)
-        yscroll = ttk.Scrollbar(container, orient="vertical", command=tree.yview)
-        xscroll = ttk.Scrollbar(container, orient="horizontal", command=tree.xview)
-        tree.configure(yscrollcommand=yscroll.set, xscrollcommand=xscroll.set)
-        tree.grid(row=0, column=0, sticky="nsew")
-        yscroll.grid(row=0, column=1, sticky="ns")
-        xscroll.grid(row=1, column=0, sticky="ew")
-        container.rowconfigure(0, weight=1)
-        container.columnconfigure(0, weight=1)
-        for col in columns:
-            tree.heading(col, text=col)
-            tree.column(col, width=130, anchor="w")
-        return tree
 
     def choose_product_image(self):
         path = filedialog.askopenfilename(
@@ -183,7 +153,7 @@ class ProductosUI(ttk.Frame):
             self.product_image_text.configure(text="No hay archivo de imagen disponible.")
             return
         try:
-            photo, resolved = self.create_photo_image(path, (260, 260))
+            photo, resolved = self.create_photo_image(path, (150, 150))
             self.product_photo_ref = photo
             self.product_image_label.configure(image=photo, text="", bg="white")
             self.product_image_text.configure(text=os.path.basename(resolved))
