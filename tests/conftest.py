@@ -4,6 +4,7 @@
 * Al terminar la corrida se escribe ``reports/results.json`` (nodeid -> resultado),
   que ``tools/generar_documentos.py`` cruza con ``docs/testing/tc/*.yml``.
 """
+import hashlib
 import json
 import sys
 from datetime import date, timedelta
@@ -34,7 +35,27 @@ def db(tmp_path):
 def empleado(db):
     return empleados_repo.guardar(db, None, "Vendedora Prueba", "vende", "1234", "Vendedor")
 
+pytest.fixture
+def empleado_con_password(db):
+    """Crea un empleado con una contraseña conocida."""
+    empleado_id = empleados_repo.guardar(
+        db,
+        None,
+        "Administrador Prueba",
+        "admin_test",
+        "1234",
+        "Administrador",
+    )
+    return empleados_repo.obtener_por_id(db, empleado_id)
 
+
+@pytest.fixture
+def hash_sha256_antiguo():
+    """Genera un hash SHA-256 antiguo sin sal."""
+    def _generar(password):
+        return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+    return _generar 
 @pytest.fixture
 def make_product(db):
     counter = {"n": 0}
