@@ -607,10 +607,28 @@ def test_tres_importes_de_diez_centavos_suman_treinta(
     "UTS_VEN_PRECIO_CENTAVOS",
     nivel="UTS",
     modulo="ventas",
-    reqs=["RF-XX"],
+    reqs=["RF-06"],
     nombre="El precio del producto se guarda en centavos"
 )
 def test_precio_de_producto_se_guarda_en_centavos(db, make_product):
+    """
+    Objetivo:
+    Comprobar que el precio de venta de un producto se almacena
+    utilizando centavos enteros.
+
+    Precondiciones:
+    - Tener una base de datos inicializada.
+    - Contar con la función make_product para registrar productos.
+
+    Pasos:
+    - Crear un producto con un precio de venta de 0.10 pesos.
+    - Consultar el precio almacenado en la tabla products.
+    - Recuperar el precio de venta del producto.
+
+    Esperado:
+    - El precio de venta debe almacenarse como 10 centavos.
+    - El valor recuperado debe ser un número entero.
+    """
     pid = make_product(price=0.10)
 
     producto = db.one(
@@ -619,3 +637,4 @@ def test_precio_de_producto_se_guarda_en_centavos(db, make_product):
     )
 
     assert producto["sale_price"] == 10
+    assert isinstance(producto["sale_price"], int)
