@@ -3,6 +3,7 @@
 El servicio corre de verdad (HTTP en 127.0.0.1, puerto libre) sobre una base temporal; cada
 ClienteLAN hace el papel de una terminal de venta distinta.
 """
+import gc
 import threading
 import time
 import tkinter as tk
@@ -33,9 +34,19 @@ def servicio(db):
     """Servicio LAN sobre la misma base que el fixture db (que hace de terminal principal)."""
     empleados_repo.guardar(db, None, "Vendedora A", "ventaA", "clave-a", "Vendedor")
     empleados_repo.guardar(db, None, "Vendedor B", "ventaB", "clave-b", "Vendedor")
+    # Los objetos Tk que dejan otras pruebas solo se liberan con el recolector de ciclos; si éste se
+    # dispara dentro de un hilo del servidor, Tcl aborta el proceso («Fatal Python error: Aborted»).
+    # Se recolecta aquí, en el hilo principal, y se pausa la recolección automática mientras el
+    # servidor atiende.
+    gc.collect()
+    gc.disable()
     s = ServidorLAN(db.path, host="127.0.0.1", puerto=0).iniciar()
-    yield s
-    s.detener()
+    try:
+        yield s
+    finally:
+        s.detener()
+        gc.enable()
+        gc.collect()
 
 
 def terminal(servicio, usuario="ventaA", contrasena="clave-a"):
