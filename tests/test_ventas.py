@@ -535,13 +535,50 @@ def test_reporte_ventas_por_producto_descuenta_devoluciones(db, empleado, make_p
     devoluciones_srv.devolver(db, sid, pid, 4, "x")
     fila = reportes_repo.ejecutar(db, "Ventas por producto")
     assert not fila or fila[0]["piezas"] == 0
-@tc("UTS_VEN_CENTAVOS", nivel="UTS", modulo="ventas",
-    reqs=["RF-08"],
-    nombre="Tres importes de diez centavos suman treinta centavos")
+
+@tc(
+    "UTS_VEN_CENTAVOS",
+    nivel="UTS",
+    modulo="ventas",
+    reqs=["RF-06", "RF-08"],
+    nombre="Tres importes de diez centavos suman treinta centavos"
+)
 def test_tres_importes_de_diez_centavos_suman_treinta(
     db, empleado, make_product
 ):
-    """Comprueba que los importes monetarios se calculan con centavos enteros."""
+    """
+    Objetivo:
+    Comprobar que los importes monetarios se calculan y almacenan
+    correctamente utilizando centavos enteros, evitando errores
+    de precisión de punto flotante.
+
+    Precondiciones:
+    - La base de datos SQLite temporal está inicializada.
+    - Existe un empleado de prueba registrado.
+    - Se puede crear un producto mediante make_product().
+    - El producto tiene un precio de venta de $0.10.
+    - El producto cuenta con existencias suficientes (10 unidades).
+
+    Pasos:
+    1. Crear un producto con precio de $0.10 y stock de 10 unidades.
+    2. Registrar una venta con tres unidades del producto.
+    3. Recuperar el subtotal, descuento y total devueltos por
+       ventas_srv.registrar().
+    4. Consultar los importes guardados en la tabla sales.
+    5. Consultar el precio unitario y el importe de la partida
+       guardados en sale_items.
+
+    Resultados esperados:
+    - El subtotal de la venta es de 30 centavos.
+    - El descuento es de 0 centavos.
+    - El total de la venta es de 30 centavos.
+    - La tabla sales almacena subtotal = 30,
+      discount_amount = 0 y total = 30.
+    - La tabla sale_items almacena unit_price = 10
+      y line_total = 30.
+    - Todos los importes se almacenan como números enteros.
+    - No existen diferencias de redondeo en la operación.
+    """
 
     pid = make_product(price=0.10, stock=10)
 
@@ -573,7 +610,8 @@ def test_tres_importes_de_diez_centavos_suman_treinta(
     )
 
     assert partida["unit_price"] == 10
-    assert partida["line_total"] == 30 
+    assert partida["line_total"] == 30
+
 def test_precio_de_producto_se_guarda_en_centavos(db, make_product):
     pid = make_product(price=0.10)
 
