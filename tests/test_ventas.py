@@ -483,7 +483,6 @@ def test_repositorio_ventas_registrar_y_obtener_fecha(db, empleado, make_product
 # ---------- defectos conocidos (B-03, B-05): el SDD los declara abiertos ----------
 @tc("ITS_VEN_08", nivel="ITS", modulo="ventas", reqs=["RF-05"],
     nombre="Cancelación con líneas duplicadas por producto (brecha B-03)")
-@pytest.mark.xfail(strict=True, reason="#53 (B-03): la cancelación presupone una sola línea por producto")
 def test_cancelacion_con_lineas_duplicadas_repone_el_remanente_exacto(db, empleado, make_product):
     """Detectar el defecto B-03 del SDD: cuando el carrito trae el mismo producto en dos líneas,
     cancelar_venta() calcula el remanente por línea y resta la devolución en cada una, así que repone
@@ -513,7 +512,6 @@ def test_cancelacion_con_lineas_duplicadas_repone_el_remanente_exacto(db, emplea
 
 @tc("ITS_REP_07", nivel="ITS", modulo="reportes", reqs=["RF-17", "RF-18"],
     nombre="Reportes de ventas descuentan devoluciones (brecha B-05)")
-@pytest.mark.xfail(strict=True, reason="#54 (B-05): los reportes de ventas no descuentan devoluciones")
 def test_reporte_ventas_por_producto_descuenta_devoluciones(db, empleado, make_product):
     """Detectar el defecto B-05 del SDD: el reporte 'Ventas por producto' de reportes_repo.ejecutar()
     (mis_trapitos/data/repositories/reportes.py) suma sale_items sin restar las devoluciones, así que
