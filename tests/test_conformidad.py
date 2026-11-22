@@ -1,6 +1,7 @@
 """Pruebas de conformidad (CTS): el comportamiento se ajusta a un estándar o a la especificación del SDD."""
 import csv
 import datetime as dt
+import hashlib
 import re
 import sqlite3
 import tkinter as tk
@@ -17,7 +18,7 @@ from mis_trapitos.services import ventas as ventas_srv
 from mis_trapitos.ui import productos as ui_productos
 from mis_trapitos.ui import reportes as ui_reportes
 from tests.tc import tc
-from utils import date_offset, hash_password, now_text, today_text
+from utils import ITERATIONS, date_offset, hash_password, now_text, today_text, verify_password
 
 # Vectores de prueba oficiales de SHA-256 (FIPS 180-4, ejemplos del NIST).
 VECTORES_SHA256 = {
@@ -191,45 +192,60 @@ def test_csv_de_reporte_cumple_rfc_4180_y_utf8(db, raiz, empleado, make_product,
     assert [fila[0] for fila in filas[1:]] == [str(r[0]) for r in ui.last_report_rows]
 
 
-# ---------- FIPS 180-4 ----------
-@tc("CTS_SEG_01", nivel="CTS", modulo="contactos", reqs=["FIPS-180-4", "SEG-01"],
-    nombre="Hash de contraseñas conforme a SHA-256 (FIPS 180-4)")
-def test_hash_de_contrasena_cumple_vectores_fips_180_4():
-    """Prueba de conformidad con FIPS 180-4: hash_password() de utils.py debe producir exactamente el
-    SHA-256 del estándar. Se compara contra los vectores de prueba oficiales publicados por el NIST
-    (diccionario VECTORES_SHA256 del archivo). FIPS-180-4, SEG-01.
+# ---------- RFC 8018 (PBKDF2) / FIPS 180-4 ----------
+FORMATO_PBKDF2 = re.compile(r"pbkdf2_sha256\$([0-9a-f]{32})\$([0-9a-f]{64})")
+
+
+@tc("CTS_SEG_01", nivel="CTS", modulo="contactos", reqs=["RFC-8018", "FIPS-180-4", "SEG-01"],
+    nombre="Hash de contraseñas conforme a PBKDF2-HMAC-SHA256 (RFC 8018)")
+def test_hash_de_contrasena_cumple_pbkdf2_y_acepta_sha256_antiguo():
+    """Prueba de conformidad con RFC 8018: hash_password() de utils.py produce
+    'pbkdf2_sha256$<sal>$<hash>', donde <hash> es exactamente PBKDF2-HMAC-SHA256 de la contraseña con
+    esa sal y utils.ITERATIONS iteraciones (se recalcula con hashlib.pbkdf2_hmac como referencia).
+    Para las cuentas anteriores, verify_password() sigue aceptando el SHA-256 sin sal de FIPS 180-4,
+    comprobado con los vectores oficiales del NIST (VECTORES_SHA256). RFC-8018, FIPS-180-4, SEG-01.
 
     Precondiciones: Ninguna.
     Pasos:
-    - Llamar hash_password('') (mensaje vacío).
-    - Llamar hash_password('abc').
-    - Llamar hash_password('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq') (mensaje de dos
-      bloques).
+    - Para cada mensaje de VECTORES_SHA256, llamar hash_password(mensaje) y separar sal y hash.
+    - Recalcular hashlib.pbkdf2_hmac('sha256', mensaje, sal, ITERATIONS).
+    - Llamar verify_password(mensaje, vector_sha256_del_nist).
     Esperado:
-    - Los tres resultados son iguales a los vectores publicados por el NIST.
+    - El resultado tiene el formato pbkdf2_sha256$<32 hex>$<64 hex>.
+    - El hash guardado es igual al PBKDF2 recalculado.
+    - Los vectores SHA-256 del NIST se aceptan como hash antiguo y se rechazan con otra contraseña.
     """
-    for mensaje, esperado in VECTORES_SHA256.items():
-        assert hash_password(mensaje) == esperado
+    for mensaje, vector in VECTORES_SHA256.items():
+        partes = FORMATO_PBKDF2.fullmatch(hash_password(mensaje))
+        assert partes, mensaje
+        sal, guardado = bytes.fromhex(partes[1]), partes[2]
+        assert hashlib.pbkdf2_hmac("sha256", mensaje.encode("utf-8"), sal, ITERATIONS).hex() == guardado
+        assert verify_password(mensaje, vector)
+        assert not verify_password(mensaje + "x", vector)
 
 
-@tc("CTS_SEG_02", nivel="CTS", modulo="contactos", reqs=["FIPS-180-4", "SEG-01"],
-    nombre="Las contraseñas se guardan solo como hash SHA-256")
+@tc("CTS_SEG_02", nivel="CTS", modulo="contactos", reqs=["RFC-8018", "SEG-01"],
+    nombre="Las contraseñas se guardan solo como hash PBKDF2 con sal")
 def test_contrasenas_se_guardan_solo_como_hash(db):
     """Verificar que las contraseñas nunca se guardan en texto plano: empleados_repo.guardar() solo escribe
-    en employees.password_hash el SHA-256 hexadecimal de la contraseña. FIPS-180-4, SEG-01.
+    en employees.password_hash un hash PBKDF2 con sal aleatoria. RFC-8018, SEG-01.
 
     Precondiciones: Fixture db (base temporal vacía).
     Pasos:
     - Llamar empleados_repo.guardar(db, None, 'Ana', 'ana', 'Secreta#2026', 'Ventas').
-    - Leer todas las columnas del registro con db.one('SELECT * FROM employees WHERE id=?').
+    - Llamar empleados_repo.guardar(db, None, 'Beto', 'beto', 'Secreta#2026', 'Ventas').
+    - Leer todas las columnas de ambos registros con db.one('SELECT * FROM employees WHERE id=?').
     Esperado:
-    - password_hash tiene 64 caracteres hexadecimales en minúscula.
+    - password_hash tiene el formato pbkdf2_sha256$<32 hex>$<64 hex>.
+    - La misma contraseña produce hashes distintos en cada empleado (sal distinta).
     - Ninguna columna contiene el texto 'Secreta#2026'.
     """
-    eid = empleados_repo.guardar(db, None, "Ana", "ana", "Secreta#2026", "Ventas")
-    fila = db.one("SELECT * FROM employees WHERE id=?", (eid,))
-    assert re.fullmatch(r"[0-9a-f]{64}", fila["password_hash"])
-    assert all("Secreta#2026" not in str(fila[k]) for k in fila.keys())
+    filas = [db.one("SELECT * FROM employees WHERE id=?",
+                    (empleados_repo.guardar(db, None, nombre, usuario, "Secreta#2026", "Ventas"),))
+             for nombre, usuario in (("Ana", "ana"), ("Beto", "beto"))]
+    assert all(FORMATO_PBKDF2.fullmatch(f["password_hash"]) for f in filas)
+    assert filas[0]["password_hash"] != filas[1]["password_hash"]
+    assert all("Secreta#2026" not in str(f[k]) for f in filas for k in f.keys())
 
 
 # ---------- integridad SQLite ----------

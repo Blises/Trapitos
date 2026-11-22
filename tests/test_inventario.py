@@ -4,7 +4,7 @@ import sqlite3
 import pytest
 
 from mis_trapitos.data.repositories import productos
-from utils import dinero, hash_password, today_text
+from utils import dinero, hash_password, today_text, verify_password
 from tests.conftest import stock
 from mis_trapitos.services import devoluciones as devoluciones_srv
 from mis_trapitos.services import ventas as ventas_srv
@@ -118,25 +118,31 @@ def test_buscar_producto_por_codigo_y_producto_inexistente(db):
 
 @tc("UTS_SEG_01", nivel="UTS", modulo="contactos", reqs=["SEG-01"],
     nombre="Hash de contraseña y autenticación")
-def test_hash_password_es_sha256_determinista():
-    """Verificar el mecanismo de contraseñas: hash_password() de utils.py calcula SHA-256 hexadecimal de
-    forma determinista, y empleados.autenticar(db, username, password) de
-    mis_trapitos/data/repositories/ empleados.py compara contra employees.password_hash y solo regresa
-    el empleado si usuario y contraseña coinciden (SEG-01).
+def test_hash_password_usa_sal_y_verifica():
+    """Verificar el mecanismo de contraseñas: hash_password() de utils.py genera un hash PBKDF2 con sal
+    aleatoria (dos llamadas con la misma contraseña dan resultados distintos), verify_password() lo
+    comprueba, y empleados.autenticar(db, username, password) de
+    mis_trapitos/data/repositories/empleados.py solo regresa el empleado si usuario y contraseña
+    coinciden; si la cuenta aún tiene un SHA-256 antiguo, lo acepta y lo migra a PBKDF2 (SEG-01).
 
     Precondiciones: Para la autenticación: fixtures db y empleado (usuario 'vende', contraseña '1234').
     Pasos:
-    - Calcular hash_password('1234') dos veces y hash_password('1235').
+    - Calcular hash_password('1234') dos veces.
+    - Llamar verify_password('1234', hash) y verify_password('1235', hash).
     - En test_autenticacion_valida_e_invalida: llamar empleados_repo.autenticar(db, 'vende', '1234').
     - Llamar autenticar(db, 'vende', 'mala').
     - Llamar autenticar(db, 'fantasma', '1234').
+    - En tests/test_passwords.py: guardar un hash SHA-256 antiguo y autenticar con él.
     Esperado:
-    - Los dos hashes de '1234' son iguales, tienen 64 caracteres y son distintos al de '1235'.
+    - Los dos hashes de '1234' son distintos y empiezan con 'pbkdf2_sha256$'.
+    - verify_password acepta '1234' y rechaza '1235'.
     - Las credenciales correctas regresan el registro del empleado.
     - Contraseña errónea y usuario inexistente regresan None.
+    - El hash antiguo se acepta y queda reemplazado por uno PBKDF2.
     """
-    assert hash_password("1234") == hash_password("1234")
-    assert len(hash_password("1234")) == 64 and hash_password("1234") != hash_password("1235")
+    h1, h2 = hash_password("1234"), hash_password("1234")
+    assert h1 != h2 and h1.startswith("pbkdf2_sha256$") and h2.startswith("pbkdf2_sha256$")
+    assert verify_password("1234", h1) and not verify_password("1235", h1)
 
 
 @tc("UTS_UTL_01", nivel="UTS", modulo="ventas", reqs=["RF-06"],

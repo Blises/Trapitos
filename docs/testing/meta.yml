@@ -51,6 +51,8 @@ other_ids:
   ISO-8601: 'Estándar ISO 8601: formato de fechas y horas'
   RFC-4180: 'Estándar RFC 4180: formato de archivos CSV'
   FIPS-180-4: 'Estándar FIPS 180-4: función hash SHA-256'
+  RFC-8018: 'Estándar RFC 8018 (PKCS #5): derivación de claves PBKDF2'
+  BD-MIG: 'Migraciones versionadas del esquema de la base (PRAGMA user_version)'
   SQL-FK: 'Integridad referencial e integridad de la base SQLite'
   SDD-CONTRATOS: 'Contratos de operaciones definidos en el SDD (sección 3.3) y tipos de movimiento de inventario'
 levels:

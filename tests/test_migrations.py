@@ -3,10 +3,28 @@ import sqlite3
 
 from mis_trapitos.data.database import Database
 from mis_trapitos.data.schema import migrate_schema
+from tests.tc import tc
 
 
+@tc("ITS_MIG_01", nivel="ITS", modulo="contactos", reqs=["BD-MIG", "SQL-FK"],
+    nombre="Migraciones versionadas del esquema conservan los datos")
 def test_base_nueva_aplica_migracion(tmp_path):
-    """Una base nueva debe terminar con la versión 1."""
+    """Verificar que Database() de mis_trapitos/data/database.py aplica migrate_schema() de
+    mis_trapitos/data/schema.py: lleva la base a la última versión (PRAGMA user_version), agrega a
+    suppliers las columnas products_supplied y last_order_date, conserva los datos de una base antigua
+    sin versión y no repite cambios si se migra otra vez. BD-MIG, SQL-FK.
+
+    Precondiciones: Directorio temporal (tmp_path) sin bases previas.
+    Pasos:
+    - Abrir Database() sobre un archivo nuevo y leer PRAGMA user_version y PRAGMA table_info(suppliers).
+    - En test_base_antigua_conserva_datos: crear con sqlite3 una tabla suppliers antigua con un
+      proveedor, abrirla con Database() y leer el proveedor.
+    - En test_migraciones_idempotentes: llamar migrate_schema(db) dos veces más.
+    Esperado:
+    - user_version queda en la versión de la migración 1.
+    - suppliers tiene products_supplied y last_order_date, cada una una sola vez.
+    - El proveedor antiguo sigue existiendo con su teléfono '1234567890'.
+    """
 
     ruta = tmp_path / "nueva.db"
 
@@ -26,6 +44,7 @@ def test_base_nueva_aplica_migracion(tmp_path):
     db.close()
 
 
+@tc("ITS_MIG_01")
 def test_base_antigua_conserva_datos(tmp_path):
     """Una base antigua sin versión debe conservar sus datos."""
 
@@ -76,6 +95,7 @@ def test_base_antigua_conserva_datos(tmp_path):
     db.close()
 
 
+@tc("ITS_MIG_01")
 def test_migraciones_idempotentes(tmp_path):
     """Ejecutar las migraciones dos veces no debe duplicar cambios."""
 
