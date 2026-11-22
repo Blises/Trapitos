@@ -4,7 +4,7 @@ Todas las funciones reciben el objeto Database (data/database.py).
 """
 
 from utils import now_text
-
+from utils import now_text, a_centavos
 
 def listar_inventario(db):
     """Filas para la tabla de inventario (el orden de columnas importa a la UI)."""
@@ -63,31 +63,58 @@ def proveedor_existe(db, supplier_id):
 
 
 def guardar(db, product_id, data):
-    """Alta (product_id=None) o edición. Regresa el id del producto.
+    """Guarda un producto convirtiendo sus precios de pesos a centavos."""
 
-    El alta registra un movimiento ENTRADA y la edición un AJUSTE si cambió
-    el stock, en la misma transacción que el producto.
-    """
+    data = list(data)
+
+    # Los precios capturados en la interfaz están expresados en pesos.
+    data[5] = a_centavos(data[5])
+    data[6] = a_centavos(data[6])
+
     with db.transaction():
         if product_id:
-            old = db.one("SELECT stock FROM products WHERE id=?", (product_id,))
+            old = db.one(
+                "SELECT stock FROM products WHERE id=?",
+                (product_id,)
+            )
+
             db.execute(
-                """UPDATE products SET code=?, name=?, category=?, size=?, color=?,
-                          purchase_price=?, sale_price=?, stock=?, supplier_id=?, entry_date=?,
-                          brand=?, season=?, image_path=?
+                """UPDATE products SET
+                       code=?, name=?, category=?, size=?, color=?,
+                       purchase_price=?, sale_price=?, stock=?,
+                       supplier_id=?, entry_date=?, brand=?, season=?,
+                       image_path=?
                    WHERE id=?""",
                 (*data, product_id),
             )
+
             if old and int(old["stock"]) != int(data[7]):
-                registrar_movimiento(db, product_id, "AJUSTE", int(data[7]) - int(old["stock"]),
-                                     "Actualizacion manual de inventario")
+                registrar_movimiento(
+                    db,
+                    product_id,
+                    "AJUSTE",
+                    int(data[7]) - int(old["stock"]),
+                    "Actualizacion manual de inventario",
+                )
+
             return product_id
+
         cur = db.execute(
-            """INSERT INTO products(code, name, category, size, color, purchase_price, sale_price,
-                                    stock, supplier_id, entry_date, brand, season, image_path,
-                                    created_at)
+            """INSERT INTO products(
+                   code, name, category, size, color,
+                   purchase_price, sale_price, stock, supplier_id,
+                   entry_date, brand, season, image_path, created_at
+               )
                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (*data, now_text()),
         )
-        registrar_movimiento(db, cur.lastrowid, "ENTRADA", int(data[7]), "Alta inicial de producto")
+
+        registrar_movimiento(
+            db,
+            cur.lastrowid,
+            "ENTRADA",
+            int(data[7]),
+            "Alta inicial de producto",
+        )
+
         return cur.lastrowid

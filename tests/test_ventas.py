@@ -179,7 +179,7 @@ def test_calculo_de_subtotal_descuento_y_total(db, empleado, make_product):
     """
     pid = make_product(price=200, stock=10)
     _, subtotal, descuento, total = ventas_srv.registrar(db, None, empleado, "Efectivo", 10, [item(pid, 3)])
-    assert (subtotal, descuento, total) == (600, 60, 540)
+    assert (subtotal, descuento, total) == (60000, 6000, 54000)
 
 
 # ---------- integración ----------
@@ -216,7 +216,11 @@ def test_venta_descuenta_stock_y_registra_salida(db, empleado, make_product):
 def test_venta_multiproducto_guarda_partidas(db, empleado, make_product):
     a, b = make_product(price=100), make_product(price=50)
     sid, subtotal, *_ = ventas_srv.registrar(db, None, empleado, "Tarjeta de debito", 0, [item(a, 2), item(b, 1)])
-    assert subtotal == 250 and db.scalar("SELECT COUNT(*) FROM sale_items WHERE sale_id=?", (sid,)) == 2
+    assert subtotal == 25000
+    assert db.scalar(
+    "SELECT COUNT(*) FROM sale_items WHERE sale_id=?",
+    (sid,)
+) == 2
 
 
 @tc("ITS_VEN_02", nivel="ITS", modulo="ventas", reqs=["RF-04"],
@@ -278,7 +282,7 @@ def test_promocion_vigente_se_aplica_automaticamente(db, empleado, make_product)
     pid = make_product(price=200)
     promociones_repo.guardar(db, None, pid, 25, dias(-1)[:10], dias(5)[:10])
     _, subtotal, *_ = ventas_srv.registrar(db, None, empleado, "Efectivo", 0, [item(pid, 2)])
-    assert subtotal == 300
+    assert subtotal == 30000
     assert db.scalar("SELECT promo_discount_percent FROM sale_items") == 25
 
 
@@ -531,3 +535,51 @@ def test_reporte_ventas_por_producto_descuenta_devoluciones(db, empleado, make_p
     devoluciones_srv.devolver(db, sid, pid, 4, "x")
     fila = reportes_repo.ejecutar(db, "Ventas por producto")
     assert not fila or fila[0]["piezas"] == 0
+@tc("UTS_VEN_CENTAVOS", nivel="UTS", modulo="ventas",
+    reqs=["RF-08"],
+    nombre="Tres importes de diez centavos suman treinta centavos")
+def test_tres_importes_de_diez_centavos_suman_treinta(
+    db, empleado, make_product
+):
+    """Comprueba que los importes monetarios se calculan con centavos enteros."""
+
+    pid = make_product(price=0.10, stock=10)
+
+    sale_id, subtotal, descuento, total = ventas_srv.registrar(
+        db,
+        None,
+        empleado,
+        "Efectivo",
+        0,
+        [item(pid, 3)],
+    )
+
+    assert subtotal == 30
+    assert descuento == 0
+    assert total == 30
+
+    venta = db.one(
+        "SELECT subtotal, discount_amount, total FROM sales WHERE id=?",
+        (sale_id,),
+    )
+
+    assert venta["subtotal"] == 30
+    assert venta["discount_amount"] == 0
+    assert venta["total"] == 30
+
+    partida = db.one(
+        "SELECT unit_price, line_total FROM sale_items WHERE sale_id=?",
+        (sale_id,),
+    )
+
+    assert partida["unit_price"] == 10
+    assert partida["line_total"] == 30 
+def test_precio_de_producto_se_guarda_en_centavos(db, make_product):
+    pid = make_product(price=0.10)
+
+    producto = db.one(
+        "SELECT sale_price FROM products WHERE id=?",
+        (pid,),
+    )
+
+    assert producto["sale_price"] == 10
