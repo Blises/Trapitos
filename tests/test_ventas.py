@@ -552,26 +552,24 @@ def test_tres_importes_de_diez_centavos_suman_treinta(
     - El producto tiene un precio de venta de $0.10.
     - El producto cuenta con existencias suficientes (10 unidades).
 
+    
     Pasos:
-    1. Crear un producto con precio de $0.10 y stock de 10 unidades.
-    2. Registrar una venta con tres unidades del producto.
-    3. Recuperar el subtotal, descuento y total devueltos por
-       ventas_srv.registrar().
-    4. Consultar los importes guardados en la tabla sales.
-    5. Consultar el precio unitario y el importe de la partida
-       guardados en sale_items.
+    - Crear un producto con precio de 10 centavos y stock de 10 unidades.
+    - Registrar una venta de tres unidades del producto.
+    - Recuperar el subtotal, descuento y total devueltos por ventas_srv.registrar().
+    - Consultar los importes guardados en la tabla sales.
+    - Consultar el precio unitario y el importe de la partida guardados en sale_items.
 
-    Esperado:
-    - El subtotal de la venta es de 30 centavos.
+
+      Esperado:
+    - El subtotal es de 30 centavos.
     - El descuento es de 0 centavos.
-    - El total de la venta es de 30 centavos.
-    - La tabla sales almacena subtotal = 30,
-      discount_amount = 0 y total = 30.
-    - La tabla sale_items almacena unit_price = 10
-      y line_total = 30.
-    - Todos los importes se almacenan como números enteros.
-    - No existen diferencias de redondeo en la operación.
-    """
+    - El total es de 30 centavos.
+    - sales.subtotal almacena 30.
+    - sales.discount_amount almacena 0.
+    - sales.total almacena 30.
+    - sale_items.unit_price almacena 10.
+    - sale_items.line_total almacena 30."""
 
     pid = make_product(price=0.10, stock=10)
 
@@ -605,7 +603,13 @@ def test_tres_importes_de_diez_centavos_suman_treinta(
     assert partida["unit_price"] == 10
     assert partida["line_total"] == 30
 
-
+@tc(
+    "UTS_VEN_PRECIO_CENTAVOS",
+    nivel="UTS",
+    modulo="ventas",
+    reqs=["RF-XX"],
+    nombre="El precio del producto se guarda en centavos"
+)
 def test_precio_de_producto_se_guarda_en_centavos(db, make_product):
     pid = make_product(price=0.10)
 

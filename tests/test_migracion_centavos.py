@@ -2,7 +2,15 @@ import sqlite3
 
 from mis_trapitos.data.database import Database
 
+from tests.tc import tc
 
+@tc(
+    "ITS_MIG_01",
+    nivel="ITS",
+    modulo="migraciones",
+    reqs=["RF-XX"],
+    nombre="La migración convierte importes a centavos"
+)
 def test_migracion_convierte_importes_a_centavos(tmp_path):
     ruta = tmp_path / "anterior.db"
 
