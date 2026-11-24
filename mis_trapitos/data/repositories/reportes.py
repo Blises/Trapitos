@@ -5,6 +5,8 @@ El SQL y los nombres de los reportes se movieron sin modificarse.
 Recibe el objeto Database (data/database.py).
 """
 
+from utils import a_centavos
+
 
 def ejecutar(db, name, param=""):
     param = (param or "").strip()
@@ -231,7 +233,8 @@ def ejecutar(db, name, param=""):
             (f"%{param}%",),
         )
     if name == "Productos con precio superior y existencias":
-        value = float(param or 0)
+        # El usuario escribe el precio en pesos; la base guarda centavos.
+        value = a_centavos(param or 0)
         return db.query(
             "SELECT code AS codigo, name AS producto, category AS categoria, sale_price AS precio, stock "
             "FROM products WHERE sale_price > ? AND stock > 0 ORDER BY sale_price DESC",
